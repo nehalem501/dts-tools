@@ -1,0 +1,16 @@
+[package]
+name = "dts-tools"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitflags = { version = "2.9", features = ["std"] }
+chrono = "0.4"
+clap = { version = "4.5", features = ["derive"] }
+ext4-view = { version = "0.9", features = ["std"] }
+flate2 = "1.1"
+lru = "0.16"
+mbrman = "0.6.1"
+md5 = "0.8"
+regex = "1.1"
+static_assertions = "1.1"
