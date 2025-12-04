@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     cd::CdTreeEntries,
-    detect::{get_dir_type, get_file_type, DirType, FileType, SndFileType},
+    detect::{DirType, FileType, SndFileType, get_dir_type, get_file_type},
     file::{DirEntry, File, FileSystem},
     hdd::decode_hdd_img_from_file,
     hdr::decode_hdr_from_file,
@@ -17,7 +17,10 @@ use crate::{
 };
 
 pub fn print_info(paths: &[PathBuf], verbose: bool) -> Result<(), Box<dyn Error>> {
-    paths.iter().map(|path| print_path_info(&path, verbose)).collect()
+    paths
+        .iter()
+        .map(|path| print_path_info(&path, verbose))
+        .collect()
 }
 
 fn print_path_info(path: &Path, verbose: bool) -> Result<(), Box<dyn Error>> {
@@ -35,7 +38,7 @@ fn print_path_info(path: &Path, verbose: bool) -> Result<(), Box<dyn Error>> {
 fn print_dir_info<FS: FileSystem, P: AsRef<Path>>(
     fs: &mut FS,
     path: &P,
-    verbose: bool
+    verbose: bool,
 ) -> Result<(), Box<dyn Error>>
 where
     <FS as FileSystem>::File: 'static,
@@ -53,7 +56,7 @@ where
 fn print_regular_dir_info<FS: FileSystem, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<(), Box<dyn Error>>
 where
     <FS as FileSystem>::File: 'static,
@@ -98,7 +101,7 @@ fn print_disc_dir_info(disc: CdTreeEntries, verbose: bool) -> Result<(), Box<dyn
 fn print_entries_info<FS: FileSystem, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<(), Box<dyn Error>>
 where
     <FS as FileSystem>::File: 'static,
@@ -117,7 +120,10 @@ where
         .collect()
 }
 
-fn print_files_info<P: AsRef<Path>>(files: Vec<(Box<dyn File>, P)>, verbose: bool) -> Result<(), Box<dyn Error>> {
+fn print_files_info<P: AsRef<Path>>(
+    files: Vec<(Box<dyn File>, P)>,
+    verbose: bool,
+) -> Result<(), Box<dyn Error>> {
     files
         .into_iter()
         .map(|(f, p)| {
@@ -145,7 +151,11 @@ fn print_files_info<P: AsRef<Path>>(files: Vec<(Box<dyn File>, P)>, verbose: boo
         .collect()
 }*/
 
-fn print_file_info(mut file: Box<dyn File>, path: &Path, verbose: bool) -> Result<(), Box<dyn Error>> {
+fn print_file_info(
+    mut file: Box<dyn File>,
+    path: &Path,
+    verbose: bool,
+) -> Result<(), Box<dyn Error>> {
     return match get_file_type(file.as_mut(), path, verbose)? {
         FileType::Aud => print_snd_header_info(file.as_mut(), path, Some(SndFileType::Aud)),
         FileType::Aue => print_snd_header_info(file.as_mut(), path, Some(SndFileType::Aue)),
@@ -212,7 +222,10 @@ fn print_snd_header_info(
     println!("  Encrypted: {}", data.encrypted);
     if let Some(some_snd_type) = snd_type {
         if some_snd_type != real_snd_type {
-            println!("  (Warning: file extension different from encryption property, file type: {}, file extension: {})", real_snd_type, some_snd_type);
+            println!(
+                "  (Warning: file extension different from encryption property, file type: {}, file extension: {})",
+                real_snd_type, some_snd_type
+            );
         }
     }
     Ok(())

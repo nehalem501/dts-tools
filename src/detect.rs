@@ -1,7 +1,7 @@
 use std::{error::Error, fmt, path::Path};
 
 use crate::{
-    cd::{get_if_dts_cd_dir_entry, CdTreeEntries},
+    cd::{CdTreeEntries, get_if_dts_cd_dir_entry},
     error::UnknownFileTypeError,
     ext234::is_ext234_image_file,
     file::{DirEntry, File, FileSystem},
@@ -71,7 +71,7 @@ impl fmt::Display for SndTrackType {
 pub fn get_file_type<P: AsRef<Path>>(
     file: &mut dyn File,
     path: P,
-    verbose: bool
+    verbose: bool,
 ) -> Result<FileType, Box<dyn Error>> {
     get_simple_file_type_from_extension(&path, verbose)
         .and_then(|t| Some(simple_file_type_to_file_type(t)))
@@ -87,7 +87,7 @@ pub fn get_file_type<P: AsRef<Path>>(
 pub fn get_dir_type<FS: FileSystem<File = F, DirEntry = D>, D: DirEntry, F: File + 'static>(
     fs: &mut FS,
     entries: &Vec<D>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<DirType, Box<dyn Error>> {
     match get_if_dts_cd_dir_entry(fs, entries, verbose)? {
         Some(cd) => Ok(DirType::DiscTree(cd)),
@@ -95,7 +95,10 @@ pub fn get_dir_type<FS: FileSystem<File = F, DirEntry = D>, D: DirEntry, F: File
     }
 }
 
-fn get_simple_file_type_from_extension<P: AsRef<Path>>(path: P, verbose: bool) -> Option<SimpleFileType> {
+fn get_simple_file_type_from_extension<P: AsRef<Path>>(
+    path: P,
+    verbose: bool,
+) -> Option<SimpleFileType> {
     let t = match path
         .as_ref()
         .extension()?
@@ -114,10 +117,13 @@ fn get_simple_file_type_from_extension<P: AsRef<Path>>(path: P, verbose: bool) -
         println!("get_simple_file_type_from_extension: {:?}", t);
     }
 
-    return t
+    return t;
 }
 
-fn get_remaining_file_type_from_extension<P: AsRef<Path>>(path: P, verbose: bool) -> Option<FileType> {
+fn get_remaining_file_type_from_extension<P: AsRef<Path>>(
+    path: P,
+    verbose: bool,
+) -> Option<FileType> {
     let t = match path
         .as_ref()
         .extension()?
@@ -131,10 +137,13 @@ fn get_remaining_file_type_from_extension<P: AsRef<Path>>(path: P, verbose: bool
     if verbose {
         println!("get_remaining_file_type_from_extension, found: {:?}", t);
     }
-    return t
+    return t;
 }
 
-fn try_get_simple_file_type_from_content(file: &mut dyn File, verbose: bool) -> Option<SimpleFileType> {
+fn try_get_simple_file_type_from_content(
+    file: &mut dyn File,
+    verbose: bool,
+) -> Option<SimpleFileType> {
     if is_hdr_file(file) {
         if verbose {
             println!("try_get_simple_file_type_from_content: Header");
@@ -150,7 +159,10 @@ fn try_get_simple_file_type_from_content(file: &mut dyn File, verbose: bool) -> 
     return None;
 }
 
-fn try_get_remaining_file_type_from_content(file: &mut dyn File, verbose: bool) -> Option<FileType> {
+fn try_get_remaining_file_type_from_content(
+    file: &mut dyn File,
+    verbose: bool,
+) -> Option<FileType> {
     if is_iso_file(file) {
         if verbose {
             println!("try_get_remaining_file_type_from_content: Iso");

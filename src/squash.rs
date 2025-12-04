@@ -1,7 +1,7 @@
 use std::{error::Error, path::PathBuf};
 
 use crate::{
-    detect::{get_file_type, FileType},
+    detect::{FileType, get_file_type},
     file::{self, DirEntry, File, FileSystem},
     squashfsfile::SquashFsFileSystem,
 };
@@ -16,7 +16,10 @@ pub fn is_squashfs_file(file: &mut dyn File) -> bool {
     }
 }
 
-pub fn decode_squashfs_from_file(file: Box<dyn File>, verbose: bool) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+pub fn decode_squashfs_from_file(
+    file: Box<dyn File>,
+    verbose: bool,
+) -> Result<Vec<PathBuf>, Box<dyn Error>> {
     let mut fs = SquashFsFileSystem::from_file(file)?;
     let root_dir_entries = fs.read_dir("/")?;
     for e in root_dir_entries {

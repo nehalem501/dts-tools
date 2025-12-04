@@ -6,7 +6,7 @@ use std::{
 };
 
 use crate::{
-    detect::{get_dir_type, DirType},
+    detect::{DirType, get_dir_type},
     file::{DirEntry, File, FileSystem},
     hdr::decode_hdr_from_file,
     metadata::{HdrFileMetadata, SndFileMetadata, TrailersMetadata, TrailersMetadataTxtEntry},
@@ -75,7 +75,7 @@ pub fn extract_files(
     output: PathBuf,
     feature: Option<Feature>,
     trailers: Option<Trailers>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut os_fs = OsFileSystem;
     if os_fs.is_dir(&input) {
@@ -93,7 +93,7 @@ fn extract_from_dir<FS: FileSystem, P: AsRef<Path>>(
     output: &P,
     feature: &Option<Feature>,
     trailers: &Option<Trailers>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<(), Box<dyn Error>>
 where
     <FS as FileSystem>::File: 'static,
@@ -120,11 +120,7 @@ where
         .map(|e| {
             let path = e.path().ok()?;
             let extension = path.extension()?.to_string_lossy().to_ascii_lowercase();
-            if extension == "snd" {
-                Some(path)
-            } else {
-                None
-            }
+            if extension == "snd" { Some(path) } else { None }
         })
         .flatten()
         .map(|p| {

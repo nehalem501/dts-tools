@@ -21,7 +21,7 @@ pub fn get_if_dts_cd_dir_entry<
 >(
     fs: &mut FS,
     entries: &Vec<D>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<Option<CdTreeEntries>, Box<dyn Error>> {
     match get_if_dts_cd(fs, entries, verbose)? {
         Some(entries) => get_dts_files(fs, &entries, verbose),
@@ -32,7 +32,7 @@ pub fn get_if_dts_cd_dir_entry<
 fn get_if_dts_cd<FS: FileSystem<DirEntry = D>, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<Option<Vec<D>>, Box<dyn Error>> {
     let mut dts_exe_found = false;
     let mut dts_dir: Option<Vec<D>> = None;
@@ -73,7 +73,7 @@ fn get_if_dts_cd<FS: FileSystem<DirEntry = D>, D: DirEntry>(
 fn get_dts_files<FS: FileSystem<File = F>, D: DirEntry, F: File + 'static>(
     fs: &mut FS,
     entries: &Vec<D>,
-    verbose: bool
+    verbose: bool,
 ) -> Result<Option<CdTreeEntries>, Box<dyn Error>> {
     let re = Regex::new(r"r[1-9][0-3]?t5\.(aud|aue)").unwrap();
 
@@ -120,7 +120,7 @@ fn get_dts_files<FS: FileSystem<File = F>, D: DirEntry, F: File + 'static>(
                 if verbose {
                     println!("");
                 }
-            },
+            }
         }
     }
 

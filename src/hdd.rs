@@ -1,7 +1,10 @@
 use std::{cell::RefCell, error::Error, path::PathBuf, rc::Rc};
 
 use crate::{
-    ext234::{EXT234_SUPERBLOCK_LEN, check_ext234_magic, get_ext234_label}, ext234file::Ext234FileSystem, file::{DirEntry, File, FileSystem}, partitionfile::{self, PartitionFileSystem}
+    ext234::{EXT234_SUPERBLOCK_LEN, check_ext234_magic, get_ext234_label},
+    ext234file::Ext234FileSystem,
+    file::{DirEntry, File, FileSystem},
+    partitionfile::{self, PartitionFileSystem},
 };
 
 const MBR_LEN: usize = 512;
@@ -15,7 +18,10 @@ pub fn is_hdd_img_file(file: &mut dyn File) -> bool {
     }
 }
 
-pub fn decode_hdd_img_from_file(mut file: Box<dyn File>, verbose: bool) -> Result<Vec<String>, Box<dyn Error>> {
+pub fn decode_hdd_img_from_file(
+    mut file: Box<dyn File>,
+    verbose: bool,
+) -> Result<Vec<String>, Box<dyn Error>> {
     if verbose {
         println!("decode_hdd_img_from_file:")
     }
@@ -28,7 +34,10 @@ pub fn decode_hdd_img_from_file(mut file: Box<dyn File>, verbose: bool) -> Resul
 
     let found = mbr.iter().find_map(|(i, p)| {
         if verbose {
-            println!("  reading partition {}: LBA: {}, length: {} sectors", i, p.starting_lba, p.sectors);
+            println!(
+                "  reading partition {}: LBA: {}, length: {} sectors",
+                i, p.starting_lba, p.sectors
+            );
         }
         let offset = p.starting_lba as u64 * mbr.sector_size as u64;
         match file.read_exact_bytes_at(EXT234_SUPERBLOCK_LEN, offset) {
@@ -48,7 +57,6 @@ pub fn decode_hdd_img_from_file(mut file: Box<dyn File>, verbose: bool) -> Resul
                         }
                     }
                 } else {
-
                 }
             }
             Err(_) => (), // TODO
@@ -62,7 +70,9 @@ pub fn decode_hdd_img_from_file(mut file: Box<dyn File>, verbose: bool) -> Resul
         }
         let start = partition.starting_lba as u64 * mbr.sector_size as u64;
         let length = partition.sectors as u64 * mbr.sector_size as u64;
-        let partition_fs = Rc::new(RefCell::new(PartitionFileSystem::from_file(file, start, length)?));
+        let partition_fs = Rc::new(RefCell::new(PartitionFileSystem::from_file(
+            file, start, length,
+        )?));
         let partition_file = Rc::new(RefCell::new(partition_fs.borrow().get_file()?));
         //let b = partition_file.borrow_mut().read_exact(buf);
         //read_exact_bytes_at(EXT234_SUPERBLOCK_LEN, 0)?;

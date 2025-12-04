@@ -1,4 +1,10 @@
-use std::{cell::RefCell, error::Error, io::{ErrorKind, Read, Seek, SeekFrom}, path::{Path, PathBuf}, rc::Rc};
+use std::{
+    cell::RefCell,
+    error::Error,
+    io::{ErrorKind, Read, Seek, SeekFrom},
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use crate::file::{DirEntry, File, FileSystem, FileType};
 
@@ -13,7 +19,7 @@ impl PartitionFileSystem {
         let fs = PartitionFileSystem {
             file: Rc::new(RefCell::new(file)),
             start,
-            len
+            len,
         };
         Ok(fs)
     }
@@ -51,8 +57,11 @@ impl FileSystem for PartitionFileSystem {
         Ok(file)
     }
 
-    fn read_dir<P: AsRef<Path>>(&mut self, _path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
-        Ok(vec!())
+    fn read_dir<P: AsRef<Path>>(
+        &mut self,
+        _path: P,
+    ) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+        Ok(vec![])
     }
 }
 

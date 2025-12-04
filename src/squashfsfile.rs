@@ -58,7 +58,6 @@ assert_eq_size!(
 assert_eq_size!(SquashFsDirHeaderRaw, [u8; SQUASHFS_DIR_HEADER_LEN as usize]);
 assert_eq_size!(SquashFsDirEntryRaw, [u8; SQUASHFS_DIR_ENTRY_LEN as usize]);
 
-
 pub struct SquashFsFileSystem {
     fs: Rc<RefCell<Box<SquashFsFileSystemInternal>>>,
     //fragments_cache: LruCache<u32, >,
@@ -190,10 +189,7 @@ impl FileSystem for SquashFsFileSystem {
 
     fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>> {
         println!("opening: {:?}", path.as_ref());
-        let entry = self.get_dir_entry_from_path(
-            path.as_ref(),
-            &mut path.as_ref().components(),
-        )?;
+        let entry = self.get_dir_entry_from_path(path.as_ref(), &mut path.as_ref().components())?;
         let fs = self.fs.borrow_mut();
         let block_size = fs.header.block_size;
         let len = 0; // TODO
@@ -300,7 +296,8 @@ impl SquashFsFileSystemInternal {
                 let entry = self.read_metadata(start, offset, (name_size + 1) as usize)?;
                 start = entry.block;
                 offset = entry.offset;
-                let dir_entry = SquashFsSimpleDirEntry::from_raw(&dir_header, &raw_entry, &entry.data);
+                let dir_entry =
+                    SquashFsSimpleDirEntry::from_raw(&dir_header, &raw_entry, &entry.data);
                 bytes += name_size as u64 + 1;
 
                 // TODO

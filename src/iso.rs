@@ -21,7 +21,7 @@ pub fn is_iso_file(file: &mut dyn File) -> bool {
 pub fn decode_iso_from_file(
     file: Box<dyn File>,
     path: &Path,
-    verbose: bool
+    verbose: bool,
 ) -> Result<CdTreeEntries, Box<dyn Error>> {
     let mut fs = IsoFileSystem::from_file(file)?;
     let root_dir_entries = fs.read_dir("/")?;
@@ -37,7 +37,7 @@ pub fn decode_iso_from_file(
         None => {
             return Err(Box::new(NotDtsDiscIsoError {
                 file: path.to_string_lossy().into_owned(),
-            }))
+            }));
         }
     }
 }

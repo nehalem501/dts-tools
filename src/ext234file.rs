@@ -1,8 +1,14 @@
 use std::{
-    cell::RefCell, error::Error, io::{Read, Seek, SeekFrom}, path::{Path, PathBuf}, rc::Rc
+    cell::RefCell,
+    error::Error,
+    io::{Read, Seek, SeekFrom},
+    path::{Path, PathBuf},
+    rc::Rc,
 };
 
-use ext4_view::{Ext4, Ext4Read, DirEntry as Ext4DirEntry, File as Ext4File, PathBuf as Ext4PathBuf};
+use ext4_view::{
+    DirEntry as Ext4DirEntry, Ext4, Ext4Read, File as Ext4File, PathBuf as Ext4PathBuf,
+};
 
 use crate::file::{DirEntry, File, FileSystem, FileType};
 
@@ -13,11 +19,7 @@ struct Ext4FileReader {
 }
 
 impl Ext4Read for Ext4FileReader {
-    fn read(
-        &mut self,
-        start_byte: u64,
-        dst: &mut [u8],
-    ) -> Result<(), BoxedError> {
+    fn read(&mut self, start_byte: u64, dst: &mut [u8]) -> Result<(), BoxedError> {
         let mut file = self.file.borrow_mut();
         file.seek(SeekFrom::Start(start_byte))?;
         file.read_exact(dst)?;
@@ -26,28 +28,22 @@ impl Ext4Read for Ext4FileReader {
 }
 
 pub struct Ext234FileSystem {
-    fs: Ext4
+    fs: Ext4,
 }
 
 impl Ext234FileSystem {
     pub fn from_file(file: Box<dyn File>) -> Result<Self, Box<dyn Error>> {
         let file = Ext4FileReader {
-            file: Rc::new(RefCell::new(file))
+            file: Rc::new(RefCell::new(file)),
         };
         let fs = Ext4::load(Box::new(file))?;
-        Ok(Ext234FileSystem {
-            fs
-        })
+        Ok(Ext234FileSystem { fs })
     }
 
     pub fn from_partition(file: Rc<RefCell<Box<dyn File>>>) -> Result<Self, Box<dyn Error>> {
-        let file = Ext4FileReader {
-            file
-        };
+        let file = Ext4FileReader { file };
         let fs = Ext4::load(Box::new(file))?;
-        Ok(Ext234FileSystem {
-            fs
-        })
+        Ok(Ext234FileSystem { fs })
     }
 }
 
@@ -71,20 +67,24 @@ impl FileSystem for Ext234FileSystem {
         }
     }
 
-    fn open_file<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<Self::File, Box<dyn Error>> {
-        let p: Ext4PathBuf = Ext4PathBuf::new(path.as_ref().as_os_str().to_str().ok_or("Couldn't convert to ext4 path")?);
+    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>> {
+        let p: Ext4PathBuf = Ext4PathBuf::new(
+            path.as_ref()
+                .as_os_str()
+                .to_str()
+                .ok_or("Couldn't convert to ext4 path")?,
+        );
         let f = self.fs.open(&p)?;
         Ok(Ext234File::from(f))
     }
 
-    fn read_dir<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
-        let p: Ext4PathBuf = Ext4PathBuf::new(path.as_ref().as_os_str().to_str().ok_or("Couldn't convert to ext4 path")?);
+    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+        let p: Ext4PathBuf = Ext4PathBuf::new(
+            path.as_ref()
+                .as_os_str()
+                .to_str()
+                .ok_or("Couldn't convert to ext4 path")?,
+        );
         let read_dir = self.fs.read_dir(&p)?.filter_map(Result::ok);
         Ok(read_dir.map(Ext234DirEntry::from).collect())
     }
@@ -117,7 +117,6 @@ impl From<Ext4File> for Ext234File {
         Ext234File { file }
     }
 }
-
 
 pub struct Ext234DirEntry {
     dir: Ext4DirEntry,
