@@ -1,10 +1,10 @@
-use std::{cell::RefCell, error::Error, path::PathBuf, rc::Rc};
+use std::{cell::RefCell, error::Error, rc::Rc};
 
 use crate::{
     ext234::{EXT234_SUPERBLOCK_LEN, check_ext234_magic, get_ext234_label},
     ext234file::Ext234FileSystem,
     file::{DirEntry, File, FileSystem},
-    partitionfile::{self, PartitionFileSystem},
+    partitionfile::PartitionFileSystem,
 };
 
 const MBR_LEN: usize = 512;
@@ -74,14 +74,8 @@ pub fn decode_hdd_img_from_file(
             file, start, length,
         )?));
         let partition_file = Rc::new(RefCell::new(partition_fs.borrow().get_file()?));
-        //let b = partition_file.borrow_mut().read_exact(buf);
-        //read_exact_bytes_at(EXT234_SUPERBLOCK_LEN, 0)?;
-        //let v = check_ext234_magic(&b);
         let mut fs = Ext234FileSystem::from_partition(partition_file)?;
-        let root = fs.read_dir("/")?;
-        for d in &root {
-            println!("  {}", d.file_name());
-        }
+        let data_dir = fs.read_dir("/data")?;
     }
 
     Ok(vec![])

@@ -96,19 +96,24 @@ pub struct Ext234File {
 
 impl File for Ext234File {
     fn len(&mut self) -> Result<u64, Box<dyn Error>> {
-        todo!()
+        let position = self.file.stream_position()?;
+        let len = self.file.seek(std::io::SeekFrom::End(0))?;
+        if position != len {
+            self.file.seek(std::io::SeekFrom::Start(position))?;
+        }
+        Ok(len)
     }
 }
 
 impl Read for Ext234File {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        todo!()
+        self.file.read(buf)
     }
 }
 
 impl Seek for Ext234File {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
-        todo!()
+        self.file.seek(pos)
     }
 }
 
