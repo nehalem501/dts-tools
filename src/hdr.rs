@@ -47,8 +47,10 @@ pub fn decode_hdr(bytes: &[u8], path: &Path) -> Result<HdrFileMetadata, Box<dyn 
     let title = str::from_utf8(&bytes[9..27 /*18*/])?.trim_matches(char::from(0));
     let studio = str::from_utf8(&bytes[69..79])?.trim_matches(char::from(0));
     let id = u16::from_le_bytes([bytes[79], bytes[80]]);
+    let reel = bytes[91];
     Ok(HdrFileMetadata {
         id: id,
+        reel: reel,
         title: title.to_string(),
         studio: studio.to_string(),
     })

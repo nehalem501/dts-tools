@@ -1,4 +1,4 @@
-use std::{error::Error, path::PathBuf, process::ExitCode};
+use std::{path::PathBuf, process::ExitCode};
 
 use clap::{Args, Parser, Subcommand};
 
@@ -11,6 +11,7 @@ mod ext234;
 mod ext234file;
 mod extract;
 mod file;
+mod json;
 mod hdd;
 mod hdr;
 mod info;
@@ -68,6 +69,9 @@ enum Commands {
     Info {
         //#[arg(arg_required_else_help = true)]
         file: Vec<PathBuf>,
+
+        #[arg(long)]
+        output_json: Option<PathBuf>
     },
     Extract {
         //#[arg(arg_required_else_help = true)]
@@ -86,7 +90,10 @@ fn main() -> ExitCode {
     let args = Cli::parse();
 
     let error = match args.command {
-        Commands::Info { file } => info::print_info(&file[..], args.global_opts.verbose),
+        Commands::Info {
+            file,
+            output_json
+        } => info::print_info(&file[..], output_json, args.global_opts.verbose),
         Commands::Extract {
             input,
             output,

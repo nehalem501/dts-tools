@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::json::{EntryJson, FeatureEntryJson, ReelEntryJson, TrailerEntryJson};
+
 enum _Type {
     Packed,
     Individual,
@@ -45,8 +47,30 @@ struct _Metadata {
 
 pub struct HdrFileMetadata {
     pub id: u16,
+    pub reel: u8,
     pub title: String,
     pub studio: String,
+}
+
+impl HdrFileMetadata {
+    pub fn to_entry(&self) -> EntryJson {
+        if self.reel == 14 {
+            EntryJson::Trailer(TrailerEntryJson {
+                id: self.id,
+                title: self.title.clone(),
+            })
+        } else {
+            EntryJson::Feature(FeatureEntryJson {
+                id: self.id,
+                title: self.title.clone(),
+                reels: vec![
+                    ReelEntryJson {
+                        number: self.reel
+                    }
+                ],
+            })
+        }
+    }
 }
 
 pub enum SndType {
