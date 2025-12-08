@@ -2,7 +2,7 @@ use std::{cell::RefCell, error::Error, rc::Rc};
 
 use crate::{
     ext234::{EXT234_SUPERBLOCK_LEN, check_ext234_magic, get_ext234_label},
-    ext234file::Ext234FileSystem,
+    ext234file::{Ext234DirEntry, Ext234FileSystem},
     file::{DirEntry, File, FileSystem},
     partitionfile::PartitionFileSystem,
 };
@@ -21,7 +21,7 @@ pub fn is_hdd_img_file(file: &mut dyn File) -> bool {
 pub fn decode_hdd_img_from_file(
     mut file: Box<dyn File>,
     verbose: bool,
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> Result<Option<Ext234FileSystem>, Box<dyn Error>> {
     if verbose {
         println!("decode_hdd_img_from_file:")
     }
@@ -74,11 +74,11 @@ pub fn decode_hdd_img_from_file(
             file, start, length,
         )?));
         let partition_file = Rc::new(RefCell::new(partition_fs.borrow().get_file()?));
-        let mut fs = Ext234FileSystem::from_partition(partition_file)?;
-        let data_dir = fs.read_dir("/data")?;
+        let fs = Ext234FileSystem::from_partition(partition_file)?;
+        return Ok(Some(fs));
     }
 
-    Ok(vec![])
+    Ok(None)
 }
 
 fn check_mbr_magic(bytes: &[u8]) -> bool {

@@ -10,14 +10,14 @@ struct MetadataJson {
 #[derive(Serialize)]
 pub enum EntryJson {
     Feature(FeatureEntryJson),
-    Trailer(TrailerEntryJson)
+    Trailer(TrailerEntryJson),
 }
 
 #[derive(Serialize)]
 pub struct FeatureEntryJson {
     pub id: u16,
     pub title: String,
-    pub reels: Vec<ReelEntryJson>
+    pub reels: Vec<ReelEntryJson>,
 }
 
 #[derive(Serialize)]
@@ -28,13 +28,15 @@ pub struct TrailerEntryJson {
 
 #[derive(Serialize)]
 pub struct ReelEntryJson {
-    pub number: u8
+    pub number: u8,
 }
 
-pub fn save_json<P: AsRef<Path>>(path: P, entries: Vec<EntryJson>, verbose: bool) -> Result<(), Box<dyn Error>> {
-    let data = MetadataJson {
-        data: entries
-    };
+pub fn save_json<P: AsRef<Path>>(
+    path: P,
+    entries: Vec<EntryJson>,
+    verbose: bool,
+) -> Result<(), Box<dyn Error>> {
+    let data = MetadataJson { data: entries };
     let json_string = serde_json::to_string_pretty(&data)?;
     if verbose {
         println!("JSON output:");

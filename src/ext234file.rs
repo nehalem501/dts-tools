@@ -86,7 +86,10 @@ impl FileSystem for Ext234FileSystem {
                 .ok_or("Couldn't convert to ext4 path")?,
         );
         let read_dir = self.fs.read_dir(&p)?.filter_map(Result::ok);
-        Ok(read_dir.map(Ext234DirEntry::from).collect())
+        Ok(read_dir
+            .filter(|e| e.file_name().as_str().is_ok_and(|n| n != "." && n != ".."))
+            .map(Ext234DirEntry::from)
+            .collect())
     }
 }
 

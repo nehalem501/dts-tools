@@ -11,12 +11,12 @@ mod ext234;
 mod ext234file;
 mod extract;
 mod file;
-mod json;
 mod hdd;
 mod hdr;
 mod info;
 mod iso;
 mod isofile;
+mod json;
 mod metadata;
 mod osfile;
 mod partitionfile;
@@ -71,7 +71,7 @@ enum Commands {
         file: Vec<PathBuf>,
 
         #[arg(long)]
-        output_json: Option<PathBuf>
+        output_json: Option<PathBuf>,
     },
     Extract {
         //#[arg(arg_required_else_help = true)]
@@ -90,10 +90,9 @@ fn main() -> ExitCode {
     let args = Cli::parse();
 
     let error = match args.command {
-        Commands::Info {
-            file,
-            output_json
-        } => info::print_info(&file[..], output_json, args.global_opts.verbose),
+        Commands::Info { file, output_json } => {
+            info::print_info(&file[..], output_json, args.global_opts.verbose)
+        }
         Commands::Extract {
             input,
             output,

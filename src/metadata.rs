@@ -63,11 +63,7 @@ impl HdrFileMetadata {
             EntryJson::Feature(FeatureEntryJson {
                 id: self.id,
                 title: self.title.clone(),
-                reels: vec![
-                    ReelEntryJson {
-                        number: self.reel
-                    }
-                ],
+                reels: vec![ReelEntryJson { number: self.reel }],
             })
         }
     }

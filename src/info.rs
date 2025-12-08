@@ -6,10 +6,24 @@ use std::{
 use itertools::Itertools;
 
 use crate::{
-    cd::CdTreeEntries, detect::{DirType, FileType, SndFileType, get_dir_type, get_file_type}, file::{DirEntry, File, FileSystem}, hdd::decode_hdd_img_from_file, hdr::decode_hdr_from_file, iso::decode_iso_from_file, json::{EntryJson, save_json}, osfile::OsFileSystem, snd::decode_snd_header_from_file, squash::decode_squashfs_from_file, trailers::decode_trailers_from_txt_file
+    cd::CdTreeEntries,
+    detect::{DirType, FileType, SndFileType, get_dir_type, get_file_type},
+    file::{DirEntry, File, FileSystem},
+    hdd::decode_hdd_img_from_file,
+    hdr::decode_hdr_from_file,
+    iso::decode_iso_from_file,
+    json::{EntryJson, save_json},
+    osfile::OsFileSystem,
+    snd::decode_snd_header_from_file,
+    squash::decode_squashfs_from_file,
+    trailers::decode_trailers_from_txt_file,
 };
 
-pub fn print_info(paths: &[PathBuf], output_json: Option<PathBuf>, verbose: bool) -> Result<(), Box<dyn Error>> {
+pub fn print_info(
+    paths: &[PathBuf],
+    output_json: Option<PathBuf>,
+    verbose: bool,
+) -> Result<(), Box<dyn Error>> {
     let json_entries: Vec<EntryJson> = paths
         .iter()
         .map(|path| print_path_info(&path, verbose))
@@ -43,7 +57,18 @@ where
 {
     let mut entries = fs.read_dir(path)?;
     entries.sort_by_key(|e| e.file_name());
-    match get_dir_type(fs, &entries, verbose)? {
+    detect_and_print_entries_info(fs, &entries, verbose)
+}
+
+fn detect_and_print_entries_info<FS: FileSystem<DirEntry = D>, D: DirEntry>(
+    fs: &mut FS,
+    entries: &Vec<D>,
+    verbose: bool,
+) -> Result<Vec<EntryJson>, Box<dyn Error>>
+where
+    <FS as FileSystem>::File: 'static,
+{
+    match get_dir_type(fs, entries, verbose)? {
         DirType::DiscTree(disc) => print_disc_dir_info(disc, verbose),
         DirType::Regular => {
             return print_regular_dir_info(fs, &entries, verbose);
@@ -62,7 +87,10 @@ where
     print_entries_info(fs, entries, verbose)
 }
 
-fn print_disc_dir_info(disc: CdTreeEntries, verbose: bool) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_disc_dir_info(
+    disc: CdTreeEntries,
+    verbose: bool,
+) -> Result<Vec<EntryJson>, Box<dyn Error>> {
     let trailers = match disc.trailers {
         Some(t) => {
             let (mut file, path) = t.metadata;
@@ -93,7 +121,7 @@ fn print_disc_dir_info(disc: CdTreeEntries, verbose: bool) -> Result<Vec<EntryJs
         }
         None => (),
     }
-    Ok(vec!())
+    Ok(vec![])
 }
 
 fn print_entries_info<FS: FileSystem, D: DirEntry>(
@@ -182,7 +210,11 @@ fn print_file_info(
     };
 }*/
 
-fn print_iso_info(file: Box<dyn File>, path: &Path, verbose: bool) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_iso_info(
+    file: Box<dyn File>,
+    path: &Path,
+    verbose: bool,
+) -> Result<Vec<EntryJson>, Box<dyn Error>> {
     let iso = decode_iso_from_file(file, path, verbose)?;
     print_disc_dir_info(iso, verbose)
 }
@@ -225,28 +257,38 @@ fn print_snd_header_info(
             );
         }
     }
-    Ok(vec!())
+    Ok(vec![])
 }
 
-fn print_squashfs_info(file: Box<dyn File>, verbose: bool) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_squashfs_info(
+    file: Box<dyn File>,
+    verbose: bool,
+) -> Result<Vec<EntryJson>, Box<dyn Error>> {
     let data = decode_squashfs_from_file(file, verbose)?;
 
     for f in data {
         println!("file: {}", f.display())
     }
 
-    Ok(vec!())
+    Ok(vec![])
 }
 
-fn print_hdd_img_info(file: Box<dyn File>, verbose: bool) -> Result<Vec<EntryJson>, Box<dyn Error>> {
-    let data = decode_hdd_img_from_file(file, verbose)?;
-    for p in data {
-        println!("part: {}", p)
+fn print_hdd_img_info(
+    file: Box<dyn File>,
+    verbose: bool,
+) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+    let fs_option = decode_hdd_img_from_file(file, verbose)?;
+    match fs_option {
+        Some(mut fs) => {
+            let mut entries = fs.read_dir("/data")?;
+            entries.sort_by_key(|e| e.file_name());
+            print_regular_dir_info(&mut fs, &entries, verbose)
+        }
+        None => todo!(),
     }
-    Ok(vec!())
 }
 
 fn print_partition_img_info(_file: Box<dyn File>) -> Result<Vec<EntryJson>, Box<dyn Error>> {
     println!("EXT234");
-    Ok(vec!())
+    Ok(vec![])
 }
