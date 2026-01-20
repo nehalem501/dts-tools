@@ -234,21 +234,58 @@ fn print_snd_header_info(
     snd_type: Option<SndFileType>,
 ) -> Result<Vec<EntryJson>, Box<dyn Error>> {
     let data = decode_snd_header_from_file(file, path)?;
-    let real_snd_type = if data.encrypted {
+    let real_snd_type = if data.encryption_key.is_some() {
         SndFileType::Aue
     } else {
         SndFileType::Aud
     };
-    println!("DTS {} file: {}", real_snd_type, path.display());
+    println!(
+        "DTS {} ({}) file: {}",
+        real_snd_type,
+        data.revision,
+        path.display()
+    );
     println!("  Id: {}", data.id);
     println!("  Title: {}", data.title);
-    println!("  Language: {}", data.language);
+    println!("  Reel: {}", data.reel);
+    if let Some(xd) = &data.xd {
+        if let Some(language) = &xd.language {
+            println!("  Language: {}", language);
+        }
+        if let Some(xda) = &xd.xda {
+            if let Some(source) = &xda.source {
+                println!("  Source: {}", source);
+            }
+            if let Some(mix) = &xda.mix {
+                println!("  Mix: {}", mix);
+            }
+            if let Some(lfe_level) = &xda.lfe_level {
+                println!("  LFE level (dB): {}", lfe_level);
+            }
+            if let Some(surround_delay) = &xda.surround_delay {
+                println!("  Surround delay: {}", surround_delay);
+            }
+            if let Some(filters) = &xda.filters {
+                println!("  Filters: {}", filters);
+            }
+        }
+    }
     if let Some(studio) = data.studio {
         println!("  Studio: {}", studio);
     }
-    println!("  Reel: {}", data.reel);
     println!("  Optical Backup: {}", data.optical_backup);
-    println!("  Encrypted: {}", data.encrypted);
+    println!("  Tracks: {}", data.tracks);
+    if let Some(start) = &data.start_offset {
+        println!("  Start: {}", start);
+    }
+    if let Some(end) = &data.end_offset {
+        println!("  End: {}", end);
+    }
+    if let Some(key) = data.encryption_key {
+        println!("  Encrypted: {}, key={:#04x}", true, key);
+    } else {
+        println!("  Encrypted: {}", false);
+    }
     if let Some(some_snd_type) = snd_type {
         if some_snd_type != real_snd_type {
             println!(

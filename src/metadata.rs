@@ -1,16 +1,76 @@
 use std::fmt;
 
-use crate::json::{EntryJson, FeatureEntryJson, ReelEntryJson, TrailerEntryJson};
+use crate::{
+    json::{EntryJson, FeatureEntryJson, ReelEntryJson, TrailerEntryJson},
+    snd::SND_HEADER_LEN_WITH_ENCRYPTION,
+};
 
 enum _Type {
     Packed,
     Individual,
 }
 
-enum _Revision {
+pub struct Offset {
+    pub frames: u8,
+    pub seconds: u8,
+    pub minutes: u8,
+    pub hours: u8,
+}
+
+impl fmt::Display for Offset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}:{:02}:{:02}.{:03}",
+            self.hours,
+            self.minutes,
+            self.seconds,
+            (self.frames as u64 * 1000) / 30
+        )
+    }
+}
+
+pub enum Revision {
     H1,
     XD,
     XDA,
+}
+
+impl Revision {
+    pub fn from_header(bytes: &[u8; SND_HEADER_LEN_WITH_ENCRYPTION]) -> Revision {
+        if bytes[60] == b'*' {
+            if bytes[18] == b' '
+                && bytes[31] == b' '
+                && bytes[47] == b' '
+                && bytes[50] == b'D'
+                && bytes[51] == b' '
+                && bytes[55] == b' '
+                && bytes[59] == b' '
+                && bytes[65] == 0
+                && bytes[66] == 0
+            {
+                Revision::XDA
+            } else {
+                Revision::XD
+            }
+        } else {
+            Revision::H1
+        }
+    }
+}
+
+impl fmt::Display for Revision {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Revision::H1 => "H1",
+                Revision::XD => "XD",
+                Revision::XDA => "XDA",
+            }
+        )
+    }
 }
 
 #[repr(u8)]
@@ -75,15 +135,31 @@ pub enum SndType {
 }
 
 pub struct SndFileMetadata {
+    pub revision: Revision,
     pub snd_type: SndType,
     pub id: u16,
     pub reel: u8,
     pub title: String,
-    pub language: String,
     pub studio: Option<String>,
     pub optical_backup: BackupSoundtrackFormat,
     pub tracks: u8,
-    pub encrypted: bool,
+    pub start_offset: Option<Offset>,
+    pub end_offset: Option<Offset>,
+    pub encryption_key: Option<u16>,
+    pub xd: Option<XDMetadata>,
+}
+
+pub struct XDMetadata {
+    pub language: Option<String>,
+    pub xda: Option<XDAMetadata>,
+}
+
+pub struct XDAMetadata {
+    pub source: Option<String>,
+    pub mix: Option<String>,
+    pub lfe_level: Option<String>,
+    pub surround_delay: Option<String>,
+    pub filters: Option<String>,
 }
 
 pub struct DtsCdMetadata {}

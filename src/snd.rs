@@ -1,13 +1,16 @@
-use std::{error::Error, path::Path, str};
+use std::{error::Error, path::Path, str, usize};
 
 use crate::{
+    bcd::{bcd_to_decimal, decimal_to_bcd},
     error::{SndUnexpectedSizeError, UnknownOpticalBackupSoundtrackFormatError},
     file::File,
-    metadata::{BackupSoundtrackFormat, SndFileMetadata, SndType},
+    metadata::{
+        BackupSoundtrackFormat, Offset, Revision, SndFileMetadata, SndType, XDAMetadata, XDMetadata,
+    },
 };
 
 pub const SND_HEADER_LEN: usize = 92;
-pub const SND_HEADER_LEN_WITH_ENCRYPTION: usize = SND_HEADER_LEN + 2;
+pub const SND_HEADER_LEN_WITH_ENCRYPTION: usize = SND_HEADER_LEN + 3;
 
 pub fn decode_snd_header_from_file(
     file: &mut dyn File,
@@ -22,84 +25,261 @@ pub fn decode_snd_header_from_file(
     }
 
     let bytes = file.read_bytes(SND_HEADER_LEN_WITH_ENCRYPTION)?;
-    decode_snd_header(file, &bytes)
+    let array = &bytes[0..SND_HEADER_LEN_WITH_ENCRYPTION].try_into()?;
+    decode_snd_header(file, array)
 }
 
 pub fn decode_snd_header(
     _file: &dyn File,
-    bytes: &[u8],
+    bytes: &[u8; SND_HEADER_LEN_WITH_ENCRYPTION],
 ) -> Result<SndFileMetadata, Box<dyn Error>> {
-    let title = str::from_utf8(&bytes[0..18])?.trim_matches(char::from(0));
-    let language = str::from_utf8(&bytes[61..65])?.trim_matches(char::from(0));
-    let studio = str::from_utf8(&bytes[68..72])?.trim_matches(char::from(0));
+    let revision = Revision::from_header(bytes);
+    let (title, xd) = match revision {
+        Revision::H1 => {
+            let title = str::from_utf8(&bytes[0..67])?;
+            (title, None)
+        }
+        Revision::XD => {
+            let title = str::from_utf8(&bytes[0..60])?;
+            let language = get_language(&bytes[60..65])?;
+            let xd = XDMetadata {
+                language,
+                xda: None,
+            };
+            (title, Some(xd))
+        }
+        Revision::XDA => {
+            let title = str::from_utf8(&bytes[0..18])?;
+            let language = get_language(&bytes[60..65])?;
+            let source = get_optional(&bytes[18..31])?;
+            let mix = get_optional(&bytes[31..47])?;
+            let lfe_level = if bytes[50] == b'D' {
+                get_optional(&bytes[47..50])?
+            } else {
+                None
+            };
+            let surround_delay = get_optional(&bytes[51..55])?;
+            let filters = get_optional(&bytes[55..59])?;
+            let xda = XDAMetadata {
+                source,
+                mix,
+                lfe_level,
+                surround_delay,
+                filters,
+            };
+            let xd = XDMetadata {
+                language,
+                xda: Some(xda),
+            };
+            (title, Some(xd))
+        }
+    };
+    let title = title.trim_matches(char::from(0)).trim().to_string();
+    let studio = get_studio(&bytes[68..72])?;
     let optical_backup = get_optical_backup_format(bytes[75])?;
     let id = u16::from_le_bytes([bytes[80], bytes[81]]);
     let tracks = bytes[82];
     let reel = bytes[78];
-    let encrypted = bytes[92] == 1;
-    // TODO other fields
+    let start_offset = get_offset(&bytes[84..88])?;
+    let end_offset = get_offset(&bytes[88..92])?;
+    let encryption_key = if bytes[92] == 1 {
+        Some(u16::from_le_bytes([bytes[93], bytes[94]]))
+    } else {
+        None
+    };
     Ok(SndFileMetadata {
+        revision,
         snd_type: if reel == 14 {
             SndType::Trailer
         } else {
             SndType::Feature
         },
-        id: id,
-        reel: reel,
-        title: title.to_string(),
-        language: language.to_string(),
-        studio: Some(studio.to_string()), // TODO
+        id,
+        reel,
+        title,
+        studio,
         optical_backup,
         tracks,
-        encrypted,
+        encryption_key,
+        start_offset,
+        end_offset,
+        xd,
     })
 }
 
-pub fn encode_header(data: &SndFileMetadata) -> Vec<u8> {
-    let mut buffer = vec![];
-    buffer.extend_from_slice(data.title.as_bytes());
-    let zeroes: Vec<u8> = std::iter::repeat_n(0, 60 - buffer.len()).collect();
-    buffer.extend_from_slice(&zeroes);
-    buffer.push(b'*');
-    buffer.extend_from_slice(data.language.as_bytes());
-    let zeroes: Vec<u8> = std::iter::repeat_n(0, 68 - buffer.len()).collect();
-    buffer.extend_from_slice(&zeroes);
-    if let Some(studio) = &data.studio {
-        buffer.extend_from_slice(studio.as_bytes());
+fn get_language(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
+    if bytes[0] == b'*' {
+        let language = str::from_utf8(&bytes[1..])?.trim_matches(char::from(0));
+        if language.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(language.to_string()))
+        }
+    } else {
+        Ok(None)
     }
-    let zeroes: Vec<u8> = std::iter::repeat_n(0, 75 - buffer.len()).collect();
-    buffer.extend_from_slice(&zeroes);
+}
+
+fn get_studio(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
+    let studio = str::from_utf8(&bytes)?.trim_matches(char::from(0));
+    if studio.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(studio.to_string()))
+    }
+}
+
+fn get_optional(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
+    if bytes[0] == b' ' {
+        let value = str::from_utf8(&bytes[1..])?.trim();
+        if value.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(value.to_string()))
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+fn get_offset(bytes: &[u8]) -> Result<Option<Offset>, Box<dyn Error>> {
+    let frames = bcd_to_decimal(bytes[0])?;
+    let raw_seconds = bytes[1];
+    let seconds = bcd_to_decimal(if raw_seconds > 0x60 {
+        raw_seconds - 0x60
+    } else {
+        raw_seconds
+    })?;
+    let raw_minutes = bytes[2];
+    let minutes = bcd_to_decimal(if raw_minutes > 0x60 {
+        raw_minutes - 0x60
+    } else {
+        raw_minutes
+    })?;
+    let hours = bcd_to_decimal(bytes[3])?;
+    if frames == 0 && seconds == 0 && minutes == 0 && hours == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(Offset {
+            frames,
+            seconds,
+            minutes,
+            hours,
+        }))
+    }
+}
+
+pub fn encode_header(data: &SndFileMetadata) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut buffer = vec![];
+    if let Some(xd) = &data.xd {
+        if let Some(xda) = &xd.xda {
+            insert_max(&mut buffer, &data.title.as_bytes(), b' ', 18);
+            insert_optional(&mut buffer, &xda.source, b' ', 12);
+            insert_optional(&mut buffer, &xda.mix, b' ', 15);
+            insert_optional(&mut buffer, &xda.lfe_level, b' ', 2);
+            if xda.lfe_level.is_some() {
+                buffer.push(b'D');
+            } else {
+                buffer.push(b' ');
+            }
+            insert_optional(&mut buffer, &xda.surround_delay, b' ', 3);
+            insert_optional(&mut buffer, &xda.filters, b' ', 3);
+            buffer.push(b' ');
+        } else {
+            insert_max(&mut buffer, &data.title.as_bytes(), 0, 60);
+        }
+        if let Some(lang) = &xd.language {
+            buffer.push(b'*');
+            insert_max(&mut buffer, &lang.as_bytes(), 0, 4);
+        } else {
+            let zeroes: Vec<u8> = std::iter::repeat_n(0, 5).collect();
+            buffer.extend_from_slice(&zeroes);
+        }
+        buffer.push(0); // TODO: sometimes other value, investigate why
+        buffer.push(0); // TODO: sometimes other value, investigate why
+        buffer.push(0);
+    } else {
+        insert_max(&mut buffer, &data.title.as_bytes(), 0, 67);
+    }
+
+    // 68
+    insert_optional(&mut buffer, &data.studio, 0, 4);
+
+    // 72
+    buffer.push(0);
+    buffer.push(0);
+    buffer.push(0);
+
+    // 75
     buffer.push(data.optical_backup as u8);
     buffer.push(0);
     buffer.push(0);
+
+    // 78
     buffer.push(data.reel);
     buffer.push(0);
+
+    // 80
     buffer.extend_from_slice(&data.id.to_le_bytes());
+
+    // 82
     buffer.push(data.tracks);
     buffer.push(0);
-    let zeroes: Vec<u8> = std::iter::repeat_n(0, 92 - buffer.len()).collect();
-    buffer.extend_from_slice(&zeroes);
 
-    // TODO
-    buffer[85] = 6;
-    buffer[89] = 0x26;
-    buffer[90] = 0xA8;
-    buffer[91] = 1;
+    // 84
+    insert_offset(&mut buffer, &data.start_offset)?;
 
-    buffer
+    // 88
+    insert_offset(&mut buffer, &data.end_offset)?;
+
+    // TODO trailer disc
+    // buffer[85] = 6;
+    // buffer[89] = 0x26;
+    // buffer[90] = 0xA8;
+    // buffer[91] = 1;
+
+    // TODO encryption
+
+    Ok(buffer)
 }
 
 pub fn get_generic_trailers_header() -> SndFileMetadata {
     SndFileMetadata {
+        revision: Revision::XD,
         snd_type: SndType::Trailer,
-        id: 1045,
+        id: 1045, // TODO
         reel: 14,
         title: "Trailers Reel 14".to_string(),
-        language: "ENG".to_string(),
         studio: Some("none".to_string()),
         optical_backup: BackupSoundtrackFormat::DolbySR,
         tracks: 5,
-        encrypted: false,
+        encryption_key: None,
+        xd: Some(XDMetadata {
+            language: Some("ENG".to_string()),
+            xda: None,
+        }),
+        start_offset: None,
+        end_offset: None,
+    }
+}
+
+fn insert_optional(buffer: &mut Vec<u8>, value: &Option<String>, fill: u8, len: usize) {
+    if let Some(v) = value {
+        buffer.push(b' ');
+        insert_max(buffer, &v.as_bytes(), fill, len);
+    } else {
+        let spaces: Vec<u8> = std::iter::repeat_n(fill, len + 1).collect();
+        buffer.extend_from_slice(&spaces);
+    }
+}
+
+fn insert_max(buffer: &mut Vec<u8>, value: &[u8], fill: u8, max: usize) {
+    let len = value.len();
+    if len >= max {
+        buffer.extend_from_slice(&value[0..max]);
+    } else {
+        let fill: Vec<u8> = std::iter::repeat_n(fill, max - len).collect();
+        buffer.extend_from_slice(&fill);
     }
 }
 
@@ -108,6 +288,22 @@ pub fn check_snd_size(file: &mut dyn File) -> (bool, u64) {
         Ok(len) => (len >= SND_HEADER_LEN_WITH_ENCRYPTION as u64, len),
         Err(_) => (false, 0),
     }
+}
+
+fn insert_offset(buffer: &mut Vec<u8>, offset: &Option<Offset>) -> Result<(), Box<dyn Error>> {
+    if let Some(o) = offset {
+        buffer.push(decimal_to_bcd(o.frames)?);
+        buffer.push(decimal_to_bcd(o.seconds)?);
+        buffer.push(decimal_to_bcd(o.minutes)?);
+        buffer.push(decimal_to_bcd(o.hours)?);
+    } else {
+        buffer.push(0);
+        buffer.push(0);
+        buffer.push(0);
+        buffer.push(0);
+    }
+
+    Ok(())
 }
 
 fn get_optical_backup_format(value: u8) -> Result<BackupSoundtrackFormat, Box<dyn Error>> {

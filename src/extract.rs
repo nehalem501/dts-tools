@@ -81,6 +81,7 @@ pub fn extract_files(
     if os_fs.is_dir(&input) {
         return extract_from_dir(&mut os_fs, &input, &output, &feature, &trailers, verbose);
     } else if os_fs.is_file(&input) {
+        // TODO check file type
         //return print_file_info(Box::new(os_fs.open_file(path)?), path);
     }
     //unreachable!();
@@ -173,7 +174,7 @@ where
                             println!("Error: this is not a trailer: {}", name);
                             todo!()
                         }
-                        if e.snd.metadata.encrypted {
+                        if e.snd.metadata.encryption_key.is_some() {
                             println!("Error: this is not a trailer: {}", name);
                             todo!()
                         }
@@ -197,7 +198,7 @@ where
                             println!("Error: this is not a trailer: {}", id);
                             todo!()
                         }
-                        if e.snd.metadata.encrypted {
+                        if e.snd.metadata.encryption_key.is_some() {
                             println!("Error: this is not a trailer: {}", id);
                             todo!()
                         }
@@ -262,7 +263,7 @@ impl Files {
         let mut trailers_metadata = TrailersMetadata { entries: vec![] };
         let mut offset: usize = 92;
 
-        snd_file.write_all(&encode_header(&get_generic_trailers_header()))?;
+        snd_file.write_all(&encode_header(&get_generic_trailers_header())?)?;
 
         for i in entries {
             let e = &mut self.entries[i];
@@ -346,7 +347,7 @@ impl Files {
             let snd_path_to = output.as_ref().join(format!(
                 "r{}t5.{}",
                 e.snd.metadata.reel,
-                if e.snd.metadata.encrypted {
+                if e.snd.metadata.encryption_key.is_some() {
                     "aue"
                 } else {
                     "aud"

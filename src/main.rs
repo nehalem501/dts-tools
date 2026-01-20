@@ -4,6 +4,7 @@ use clap::{Args, Parser, Subcommand};
 
 use crate::extract::{Feature, FeatureId, FeatureName, TrailerIds, TrailerNames, Trailers};
 
+mod bcd;
 mod cd;
 mod detect;
 mod error;

@@ -165,3 +165,29 @@ impl fmt::Display for UnknownOpticalBackupSoundtrackFormatError {
         )
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct BcdDecodeError {
+    pub value: u8,
+}
+
+impl Error for BcdDecodeError {}
+
+impl fmt::Display for BcdDecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Could not unpack BCD value: {:#02x}", self.value)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BcdEncodeError {
+    pub value: u8,
+}
+
+impl Error for BcdEncodeError {}
+
+impl fmt::Display for BcdEncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Could not pack value to BCD: {}", self.value)
+    }
+}
