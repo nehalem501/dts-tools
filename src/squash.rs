@@ -19,7 +19,7 @@ pub fn is_squashfs_file(file: &mut dyn File) -> bool {
 }
 
 pub fn decode_squashfs_from_file(file: Box<dyn File>, verbose: bool) -> Result<Vec<PathBuf>> {
-    let mut fs = SquashFsFileSystem::from_file(file)?;
+    /*let mut fs = SquashFsFileSystem::from_file(file)?;
     let root_dir_entries = fs.read_dir("/")?;
     for e in root_dir_entries {
         if e.file_type()? == file::FileType::Directory {
@@ -37,7 +37,7 @@ pub fn decode_squashfs_from_file(file: Box<dyn File>, verbose: bool) -> Result<V
             FileType::HddImg => todo!(),
             FileType::PartitionImg => todo!(),
         }
-    }
+    }*/
     Ok(vec![])
 }
 

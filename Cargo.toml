@@ -5,13 +5,12 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
+backhand = "0.24.1"
 bitflags = { version = "2.9", features = ["std"] }
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 ext4-view = { version = "0.9.3" , features = ["std"] }
-flate2 = "1.1"
 itertools = "0.14.0"
-lru = "0.16"
 mbrman = "0.6.1"
 md5 = "0.8"
 regex = "1.1"
