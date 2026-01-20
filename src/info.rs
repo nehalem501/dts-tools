@@ -1,8 +1,6 @@
-use std::{
-    error::Error,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use itertools::Itertools;
 
 use crate::{
@@ -19,11 +17,7 @@ use crate::{
     trailers::decode_trailers_from_txt_file,
 };
 
-pub fn print_info(
-    paths: &[PathBuf],
-    output_json: Option<PathBuf>,
-    verbose: bool,
-) -> Result<(), Box<dyn Error>> {
+pub fn print_info(paths: &[PathBuf], output_json: Option<PathBuf>, verbose: bool) -> Result<()> {
     let json_entries: Vec<EntryJson> = paths
         .iter()
         .map(|path| print_path_info(&path, verbose))
@@ -35,7 +29,7 @@ pub fn print_info(
     }
 }
 
-fn print_path_info(path: &Path, verbose: bool) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_path_info(path: &Path, verbose: bool) -> Result<Vec<EntryJson>> {
     let mut os_fs = OsFileSystem;
 
     if os_fs.is_dir(path) {
@@ -51,7 +45,7 @@ fn print_dir_info<FS: FileSystem, P: AsRef<Path>>(
     fs: &mut FS,
     path: &P,
     verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>>
+) -> Result<Vec<EntryJson>>
 where
     <FS as FileSystem>::File: 'static,
 {
@@ -64,7 +58,7 @@ fn detect_and_print_entries_info<FS: FileSystem<DirEntry = D>, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>>
+) -> Result<Vec<EntryJson>>
 where
     <FS as FileSystem>::File: 'static,
 {
@@ -80,17 +74,14 @@ fn print_regular_dir_info<FS: FileSystem, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>>
+) -> Result<Vec<EntryJson>>
 where
     <FS as FileSystem>::File: 'static,
 {
     print_entries_info(fs, entries, verbose)
 }
 
-fn print_disc_dir_info(
-    disc: CdTreeEntries,
-    verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_disc_dir_info(disc: CdTreeEntries, verbose: bool) -> Result<Vec<EntryJson>> {
     let trailers = match disc.trailers {
         Some(t) => {
             let (mut file, path) = t.metadata;
@@ -128,7 +119,7 @@ fn print_entries_info<FS: FileSystem, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>>
+) -> Result<Vec<EntryJson>>
 where
     <FS as FileSystem>::File: 'static,
 {
@@ -149,7 +140,7 @@ where
 fn print_files_info<P: AsRef<Path>>(
     files: Vec<(Box<dyn File>, P)>,
     verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+) -> Result<Vec<EntryJson>> {
     files
         .into_iter()
         .map(|(f, p)| {
@@ -164,7 +155,7 @@ fn print_files_info<P: AsRef<Path>>(
 
 /*fn print_files_info_without_squashfs<P: AsRef<Path>>(
     files: Vec<(Box<dyn File>, P)>,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     files
         .into_iter()
         .map(|(f, p)| {
@@ -177,11 +168,7 @@ fn print_files_info<P: AsRef<Path>>(
         .collect()
 }*/
 
-fn print_file_info(
-    mut file: Box<dyn File>,
-    path: &Path,
-    verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_file_info(mut file: Box<dyn File>, path: &Path, verbose: bool) -> Result<Vec<EntryJson>> {
     return match get_file_type(file.as_mut(), path, verbose)? {
         FileType::Aud => print_snd_header_info(file.as_mut(), path, Some(SndFileType::Aud)),
         FileType::Aue => print_snd_header_info(file.as_mut(), path, Some(SndFileType::Aue)),
@@ -197,7 +184,7 @@ fn print_file_info(
 /*fn print_file_info_without_squashfs(
     mut file: Box<dyn File>,
     path: &Path,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     return match get_file_type(file.as_mut(), path)? {
         FileType::Aud => print_snd_header_info(file.as_mut(), path, Some(SndFileType::Aud)),
         FileType::Aue => print_snd_header_info(file.as_mut(), path, Some(SndFileType::Aue)),
@@ -210,16 +197,12 @@ fn print_file_info(
     };
 }*/
 
-fn print_iso_info(
-    file: Box<dyn File>,
-    path: &Path,
-    verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_iso_info(file: Box<dyn File>, path: &Path, verbose: bool) -> Result<Vec<EntryJson>> {
     let iso = decode_iso_from_file(file, path, verbose)?;
     print_disc_dir_info(iso, verbose)
 }
 
-fn print_hdr_info(file: &mut dyn File, path: &Path) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_hdr_info(file: &mut dyn File, path: &Path) -> Result<Vec<EntryJson>> {
     let data = decode_hdr_from_file(file, path)?;
     println!("DTS XD HDR file: {}", path.display());
     println!("  Id: {}", data.id);
@@ -232,7 +215,7 @@ fn print_snd_header_info(
     file: &mut dyn File,
     path: &Path,
     snd_type: Option<SndFileType>,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+) -> Result<Vec<EntryJson>> {
     let data = decode_snd_header_from_file(file, path)?;
     let real_snd_type = if data.encryption_key.is_some() {
         SndFileType::Aue
@@ -297,10 +280,7 @@ fn print_snd_header_info(
     Ok(vec![])
 }
 
-fn print_squashfs_info(
-    file: Box<dyn File>,
-    verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_squashfs_info(file: Box<dyn File>, verbose: bool) -> Result<Vec<EntryJson>> {
     let data = decode_squashfs_from_file(file, verbose)?;
 
     for f in data {
@@ -310,10 +290,7 @@ fn print_squashfs_info(
     Ok(vec![])
 }
 
-fn print_hdd_img_info(
-    file: Box<dyn File>,
-    verbose: bool,
-) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_hdd_img_info(file: Box<dyn File>, verbose: bool) -> Result<Vec<EntryJson>> {
     let fs_option = decode_hdd_img_from_file(file, verbose)?;
     match fs_option {
         Some(mut fs) => {
@@ -325,7 +302,7 @@ fn print_hdd_img_info(
     }
 }
 
-fn print_partition_img_info(_file: Box<dyn File>) -> Result<Vec<EntryJson>, Box<dyn Error>> {
+fn print_partition_img_info(_file: Box<dyn File>) -> Result<Vec<EntryJson>> {
     println!("EXT234");
     Ok(vec![])
 }

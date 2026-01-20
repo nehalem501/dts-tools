@@ -1,22 +1,17 @@
 use std::{
-    error::Error,
-    fmt::format,
     fs,
     io::{BufRead, BufReader, Lines, Write},
-    os::unix::fs::FileExt,
     path::Path,
 };
 
+use anyhow::{Result, anyhow};
+
 use crate::{
-    error::ParseTrailerMetadataTxtError,
     file::File,
     metadata::{TrailersMetadata, TrailersMetadataTxtEntry},
 };
 
-pub fn decode_trailers_from_txt_file(
-    file: &mut dyn File,
-    path: &Path,
-) -> Result<TrailersMetadata, Box<dyn Error>> {
+pub fn decode_trailers_from_txt_file(file: &mut dyn File, path: &Path) -> Result<TrailersMetadata> {
     let lines = read_lines(file);
     let mut entries = vec![];
     for (i, l) in lines.enumerate() {
@@ -33,10 +28,7 @@ pub fn decode_trailers_from_txt_file(
     Ok(TrailersMetadata { entries })
 }
 
-pub fn encode_trailers_to_txt_file(
-    file: &mut fs::File,
-    data: &TrailersMetadata,
-) -> Result<(), Box<dyn Error>> {
+pub fn encode_trailers_to_txt_file(file: &mut fs::File, data: &TrailersMetadata) -> Result<()> {
     let mut buf: Vec<u8> = vec![];
     buf.extend_from_slice(get_header().as_bytes());
     for e in &data.entries {
@@ -63,7 +55,7 @@ fn line_to_entry(
     line: String,
     position: usize,
     path: &Path,
-) -> Result<Option<TrailersMetadataTxtEntry>, Box<dyn Error>> {
+) -> Result<Option<TrailersMetadataTxtEntry>> {
     let tokens: Vec<&str> = line.split_ascii_whitespace().collect();
 
     if tokens.len() == 5 {
@@ -83,11 +75,12 @@ fn line_to_entry(
         if !line.chars().all(char::is_alphanumeric) {
             Ok(None)
         } else {
-            Err(Box::new(ParseTrailerMetadataTxtError {
-                file: path.to_string_lossy().into_owned(),
+            Err(anyhow!(
+                "Could not parse file ({}), error at line {}: '{}'",
+                path.display(),
                 line,
-                position: (position + 2) as u32,
-            }))
+                position + 2
+            ))
         }
     }
 }

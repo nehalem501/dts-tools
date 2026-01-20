@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+use anyhow::{Result, anyhow};
 use ext4_view::{
     DirEntry as Ext4DirEntry, Ext4, Ext4Read, File as Ext4File, PathBuf as Ext4PathBuf,
 };
@@ -32,7 +33,7 @@ pub struct Ext234FileSystem {
 }
 
 impl Ext234FileSystem {
-    pub fn from_file(file: Box<dyn File>) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file(file: Box<dyn File>) -> Result<Self> {
         let file = Ext4FileReader {
             file: Rc::new(RefCell::new(file)),
         };
@@ -40,7 +41,7 @@ impl Ext234FileSystem {
         Ok(Ext234FileSystem { fs })
     }
 
-    pub fn from_partition(file: Rc<RefCell<Box<dyn File>>>) -> Result<Self, Box<dyn Error>> {
+    pub fn from_partition(file: Rc<RefCell<Box<dyn File>>>) -> Result<Self> {
         let file = Ext4FileReader { file };
         let fs = Ext4::load(Box::new(file))?;
         Ok(Ext234FileSystem { fs })
@@ -67,23 +68,23 @@ impl FileSystem for Ext234FileSystem {
         }
     }
 
-    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>> {
+    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File> {
         let p: Ext4PathBuf = Ext4PathBuf::new(
             path.as_ref()
                 .as_os_str()
                 .to_str()
-                .ok_or("Couldn't convert to ext4 path")?,
+                .ok_or(anyhow!("Couldn't convert to ext4 path"))?,
         );
         let f = self.fs.open(&p)?;
         Ok(Ext234File::from(f))
     }
 
-    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>> {
         let p: Ext4PathBuf = Ext4PathBuf::new(
             path.as_ref()
                 .as_os_str()
                 .to_str()
-                .ok_or("Couldn't convert to ext4 path")?,
+                .ok_or(anyhow!("Couldn't convert to ext4 path"))?,
         );
         let read_dir = self.fs.read_dir(&p)?.filter_map(Result::ok);
         Ok(read_dir
@@ -98,7 +99,7 @@ pub struct Ext234File {
 }
 
 impl File for Ext234File {
-    fn len(&mut self) -> Result<u64, Box<dyn Error>> {
+    fn len(&mut self) -> Result<u64> {
         let position = self.file.stream_position()?;
         let len = self.file.seek(std::io::SeekFrom::End(0))?;
         if position != len {
@@ -131,13 +132,13 @@ pub struct Ext234DirEntry {
 }
 
 impl DirEntry for Ext234DirEntry {
-    fn path(&self) -> Result<PathBuf, Box<dyn Error>> {
+    fn path(&self) -> Result<PathBuf> {
         let p = self.dir.path();
         let s = p.to_str()?;
         Ok(PathBuf::from(s))
     }
 
-    fn file_type(&self) -> Result<FileType, Box<dyn Error>> {
+    fn file_type(&self) -> Result<FileType> {
         let metadata = self.dir.metadata()?;
         if metadata.is_dir() {
             Ok(FileType::Directory)

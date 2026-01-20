@@ -1,10 +1,11 @@
 use std::{
     cell::RefCell,
-    error::Error,
     io::{ErrorKind, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     rc::Rc,
 };
+
+use anyhow::Result;
 
 use crate::file::{DirEntry, File, FileSystem, FileType};
 
@@ -15,7 +16,7 @@ pub struct PartitionFileSystem {
 }
 
 impl PartitionFileSystem {
-    pub fn from_file(file: Box<dyn File>, start: u64, len: u64) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file(file: Box<dyn File>, start: u64, len: u64) -> Result<Self> {
         let fs = PartitionFileSystem {
             file: Rc::new(RefCell::new(file)),
             start,
@@ -24,7 +25,7 @@ impl PartitionFileSystem {
         Ok(fs)
     }
 
-    pub fn get_file(&self) -> Result<Box<dyn File>, Box<dyn Error>> {
+    pub fn get_file(&self) -> Result<Box<dyn File>> {
         let file = Box::new(PartitionFile {
             start: self.start,
             len: self.len,
@@ -47,7 +48,7 @@ impl FileSystem for PartitionFileSystem {
         false
     }
 
-    fn open_file<P: AsRef<Path>>(&mut self, _path: P) -> Result<Self::File, Box<dyn Error>> {
+    fn open_file<P: AsRef<Path>>(&mut self, _path: P) -> Result<Self::File> {
         let file = PartitionFile {
             start: self.start,
             len: self.len,
@@ -57,10 +58,7 @@ impl FileSystem for PartitionFileSystem {
         Ok(file)
     }
 
-    fn read_dir<P: AsRef<Path>>(
-        &mut self,
-        _path: P,
-    ) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+    fn read_dir<P: AsRef<Path>>(&mut self, _path: P) -> Result<Vec<Self::DirEntry>> {
         Ok(vec![])
     }
 }
@@ -73,7 +71,7 @@ pub struct PartitionFile {
 }
 
 impl File for PartitionFile {
-    fn len(&mut self) -> Result<u64, Box<dyn Error>> {
+    fn len(&mut self) -> Result<u64> {
         Ok(self.len)
     }
 }
@@ -145,11 +143,11 @@ impl Seek for PartitionFile {
 pub struct PartitionDirEntry {}
 
 impl DirEntry for PartitionDirEntry {
-    fn path(&self) -> Result<PathBuf, Box<dyn Error>> {
+    fn path(&self) -> Result<PathBuf> {
         Ok(PathBuf::new())
     }
 
-    fn file_type(&self) -> Result<FileType, Box<dyn Error>> {
+    fn file_type(&self) -> Result<FileType> {
         Ok(FileType::File)
     }
 }

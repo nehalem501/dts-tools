@@ -1,8 +1,9 @@
 use std::{
-    error::Error,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
+
+use anyhow::Result;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum FileType {
@@ -11,9 +12,9 @@ pub enum FileType {
 }
 
 pub trait File: Read /*+ Write*/ + Seek /*+ Send + Sync*/ {
-    fn len(&mut self) -> Result<u64, Box<dyn Error>>;
+    fn len(&mut self) -> Result<u64>;
 
-    fn read_bytes(&mut self, bytes: usize) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_bytes(&mut self, bytes: usize) -> Result<Vec<u8>> {
         self.read_exact_bytes_at(bytes, 0)
     }
 
@@ -25,7 +26,7 @@ pub trait File: Read /*+ Write*/ + Seek /*+ Send + Sync*/ {
         Ok(len)
     }
 
-    fn read_exact_bytes_at(&mut self, bytes: usize, at: u64) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_exact_bytes_at(&mut self, bytes: usize, at: u64) -> Result<Vec<u8>> {
         let position = self.stream_position()?;
         self.seek(SeekFrom::Start(at))?;
         let mut buffer = vec![0; bytes];
@@ -34,7 +35,7 @@ pub trait File: Read /*+ Write*/ + Seek /*+ Send + Sync*/ {
         Ok(buffer)
     }
 
-    fn read_le_u16_at(&mut self, at: u64) -> Result<u16, Box<dyn Error>> {
+    fn read_le_u16_at(&mut self, at: u64) -> Result<u16> {
         let position = self.stream_position()?;
         self.seek(SeekFrom::Start(at))?;
         let mut buffer = vec![0; 2];
@@ -46,8 +47,8 @@ pub trait File: Read /*+ Write*/ + Seek /*+ Send + Sync*/ {
 }
 
 pub trait DirEntry {
-    fn path(&self) -> Result<PathBuf, Box<dyn Error>>;
-    fn file_type(&self) -> Result<FileType, Box<dyn Error>>;
+    fn path(&self) -> Result<PathBuf>;
+    fn file_type(&self) -> Result<FileType>;
     fn file_name(&self) -> String {
         match self.path() {
             Ok(p) => match p.as_path().file_name() {
@@ -66,6 +67,6 @@ pub trait FileSystem {
     fn is_file<P: AsRef<Path>>(&mut self, path: P) -> bool;
     fn is_dir<P: AsRef<Path>>(&mut self, path: P) -> bool;
 
-    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>>;
-    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>>;
+    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File>;
+    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>>;
 }

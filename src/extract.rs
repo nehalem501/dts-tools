@@ -1,9 +1,10 @@
 use std::{
-    error::Error,
     fs::{self, create_dir_all},
     io::{Read, Write},
     path::{Path, PathBuf},
 };
+
+use anyhow::Result;
 
 use crate::{
     detect::{DirType, get_dir_type},
@@ -76,7 +77,7 @@ pub fn extract_files(
     feature: Option<Feature>,
     trailers: Option<Trailers>,
     verbose: bool,
-) -> Result<(), Box<dyn Error>> {
+) -> Result<()> {
     let mut os_fs = OsFileSystem;
     if os_fs.is_dir(&input) {
         return extract_from_dir(&mut os_fs, &input, &output, &feature, &trailers, verbose);
@@ -95,7 +96,7 @@ fn extract_from_dir<FS: FileSystem, P: AsRef<Path>>(
     feature: &Option<Feature>,
     trailers: &Option<Trailers>,
     verbose: bool,
-) -> Result<(), Box<dyn Error>>
+) -> Result<()>
 where
     <FS as FileSystem>::File: 'static,
 {
@@ -112,7 +113,7 @@ fn extract_from_regular_dir<FS: FileSystem, D: DirEntry, P: AsRef<Path>>(
     entries: &Vec<D>,
     feature: &Option<Feature>,
     trailers: &Option<Trailers>,
-) -> Result<(), Box<dyn Error>>
+) -> Result<()>
 where
     <FS as FileSystem>::File: 'static,
 {
@@ -247,7 +248,7 @@ impl Files {
         &mut self,
         entries: Vec<usize>,
         output: P,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<()> {
         if entries.len() == 0 {
             todo!();
             //return Ok(())
@@ -309,7 +310,7 @@ impl Files {
         &mut self,
         entries: Vec<usize>,
         output: P,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<()> {
         if entries.len() == 0 {
             todo!();
             //return Ok(())

@@ -1,21 +1,18 @@
 use std::{
     cell::RefCell,
-    error::Error,
     io::{ErrorKind, Read, Seek, SeekFrom},
     num::NonZeroUsize,
     path::{Component, Components, Path, PathBuf},
     rc::Rc,
 };
 
+use anyhow::{Result, anyhow};
 use bitflags::bitflags;
 use flate2::read::ZlibDecoder;
 use lru::LruCache;
 use static_assertions::assert_eq_size;
 
-use crate::{
-    error::PathError,
-    file::{DirEntry, File, FileSystem, FileType},
-};
+use crate::file::{DirEntry, File, FileSystem, FileType};
 
 const SQUASHFS_DIR_COUNT: u32 = 256;
 const SQUASHFS_NAME_LEN: u16 = 256;
@@ -65,7 +62,7 @@ pub struct SquashFsFileSystem {
 }
 
 impl SquashFsFileSystem {
-    pub fn from_file(mut file: Box<dyn File>) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file(mut file: Box<dyn File>) -> Result<Self> {
         let bytes = file.read_exact_bytes_at(SQUASHFS_HEADER_LEN as usize, 0)?;
         let raw_header: SquashFsHeaderRaw = unsafe { std::ptr::read(bytes.as_ptr() as *const _) };
         /*let mut offset = SQUASHFS_HEADER_LEN;
@@ -125,7 +122,7 @@ impl SquashFsFileSystem {
         &mut self,
         path: &Path,
         components: &mut Components,
-    ) -> Result<SquashFsSimpleDirEntry, Box<dyn Error>> {
+    ) -> Result<SquashFsSimpleDirEntry> {
         match components.next() {
             Some(Component::Normal(name)) => {
                 match self
@@ -139,19 +136,22 @@ impl SquashFsFileSystem {
                         //    self.get_dir_entry_from_path(d, path, components)
                         //} else {
                         match components.next() {
-                            Some(c) => Err(Box::new(PathError {
-                                path: path.join(c.as_os_str()).to_string_lossy().to_string(),
-                                file: String::new(), // TODO
-                            })),
+                            Some(c) => Err(anyhow!(
+                                "Could not find path ({}) in file {}",
+                                path.join(c.as_os_str()).display(),
+                                /*TODO*/ String::new()
+                            )),
+
                             None => Ok(d.clone()),
                         }
                         //}
                     }
                     None => {
-                        Err(Box::new(PathError {
-                            path: path.to_string_lossy().to_string(),
-                            file: String::new(), // TODO
-                        }))
+                        Err(anyhow!(
+                            "Could not find path ({}) in file {}",
+                            path.display(),
+                            /*TODO*/ String::new()
+                        ))
                     }
                 }
             }
@@ -187,7 +187,7 @@ impl FileSystem for SquashFsFileSystem {
         }
     }
 
-    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>> {
+    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File> {
         println!("opening: {:?}", path.as_ref());
         let entry = self.get_dir_entry_from_path(path.as_ref(), &mut path.as_ref().components())?;
         let fs = self.fs.borrow_mut();
@@ -200,7 +200,7 @@ impl FileSystem for SquashFsFileSystem {
         })
     }
 
-    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>> {
         let mut components = path.as_ref().components();
         if let Some(c) = components.next() {
             if c != Component::RootDir {
@@ -248,12 +248,12 @@ struct SquashFsFileSystemInternal {
 }
 
 impl SquashFsFileSystemInternal {
-    fn dir_scan(&mut self, start: u64, offset: u64) -> Result<SquashFsDir, Box<dyn Error>> {
+    fn dir_scan(&mut self, start: u64, offset: u64) -> Result<SquashFsDir> {
         let dir = self.open_dir(start, offset)?;
         Ok(dir)
     }
 
-    fn open_dir(&mut self, start: u64, offset: u64) -> Result<SquashFsDir, Box<dyn Error>> {
+    fn open_dir(&mut self, start: u64, offset: u64) -> Result<SquashFsDir> {
         let inode = self.read_inode(start, offset)?;
 
         if inode.file_size() == 3 {
@@ -308,7 +308,7 @@ impl SquashFsFileSystemInternal {
         Ok(SquashFsDir { entries })
     }
 
-    fn read_inode(&mut self, start_block: u64, offset: u64) -> Result<Inode, Box<dyn Error>> {
+    fn read_inode(&mut self, start_block: u64, offset: u64) -> Result<Inode> {
         let start = self.header.inode_table + start_block;
         let entry = self.read_metadata(
             start,
@@ -384,7 +384,7 @@ impl SquashFsFileSystemInternal {
         block: u64,
         offset: usize,
         length: usize,
-    ) -> Result<SquashFsMetadataEntry, Box<dyn Error>> {
+    ) -> Result<SquashFsMetadataEntry> {
         let mut data: Vec<u8> = vec![];
         let mut block = block;
         let mut offset = offset;
@@ -419,7 +419,7 @@ impl SquashFsFileSystemInternal {
         }
     }
 
-    fn get_metadata(&mut self, start: u64) -> Result<&SquashFsBlockEntry, Box<dyn Error>> {
+    fn get_metadata(&mut self, start: u64) -> Result<&SquashFsBlockEntry> {
         if !self.blocks_cache.contains(&start) {
             let entry = self.read_block(start, None)?;
             self.blocks_cache.push(start, entry);
@@ -428,11 +428,7 @@ impl SquashFsFileSystemInternal {
         Ok(self.blocks_cache.get(&start).unwrap())
     }
 
-    fn read_block(
-        &mut self,
-        start: u64,
-        expected: Option<u64>,
-    ) -> Result<SquashFsBlockEntry, Box<dyn Error>> {
+    fn read_block(&mut self, start: u64, expected: Option<u64>) -> Result<SquashFsBlockEntry> {
         let len = if let Some(e) = expected {
             e
         } else {
@@ -495,7 +491,7 @@ pub struct SquashFsFile {
 impl SquashFsFile {}
 
 impl File for SquashFsFile {
-    fn len(&mut self) -> Result<u64, Box<dyn Error>> {
+    fn len(&mut self) -> Result<u64> {
         Ok(self.len)
     }
 }
@@ -562,11 +558,11 @@ pub struct SquashFsDirEntry {
 }
 
 impl DirEntry for SquashFsDirEntry {
-    fn path(&self) -> Result<PathBuf, Box<dyn Error>> {
+    fn path(&self) -> Result<PathBuf> {
         Ok(self.path.clone())
     }
 
-    fn file_type(&self) -> Result<FileType, Box<dyn Error>> {
+    fn file_type(&self) -> Result<FileType> {
         Ok(self.entry_type.clone())
     }
 }
@@ -885,7 +881,7 @@ struct Inode {
 }
 
 impl Inode {
-    fn from_ref(inode_ref: u64, table_start: u64) -> Result<Inode, Box<dyn Error>> {
+    fn from_ref(inode_ref: u64, table_start: u64) -> Result<Inode> {
         let inode_start = to_inode_blk(inode_ref) + table_start;
         let inode_offset = to_inode_offset(inode_ref);
         todo!()

@@ -1,9 +1,11 @@
-use std::{cell::RefCell, error::Error, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+use anyhow::Result;
 
 use crate::{
     ext234::{EXT234_SUPERBLOCK_LEN, check_ext234_magic, get_ext234_label},
-    ext234file::{Ext234DirEntry, Ext234FileSystem},
-    file::{DirEntry, File, FileSystem},
+    ext234file::Ext234FileSystem,
+    file::File,
     partitionfile::PartitionFileSystem,
 };
 
@@ -21,7 +23,7 @@ pub fn is_hdd_img_file(file: &mut dyn File) -> bool {
 pub fn decode_hdd_img_from_file(
     mut file: Box<dyn File>,
     verbose: bool,
-) -> Result<Option<Ext234FileSystem>, Box<dyn Error>> {
+) -> Result<Option<Ext234FileSystem>> {
     if verbose {
         println!("decode_hdd_img_from_file:")
     }

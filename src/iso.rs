@@ -1,8 +1,9 @@
-use std::{error::Error, path::Path};
+use std::path::Path;
+
+use anyhow::{Result, anyhow};
 
 use crate::{
     cd::{CdTreeEntries, get_if_dts_cd_dir_entry},
-    error::NotDtsDiscIsoError,
     file::{DirEntry, File, FileSystem},
     isofile::IsoFileSystem,
 };
@@ -22,7 +23,7 @@ pub fn decode_iso_from_file(
     file: Box<dyn File>,
     path: &Path,
     verbose: bool,
-) -> Result<CdTreeEntries, Box<dyn Error>> {
+) -> Result<CdTreeEntries> {
     let mut fs = IsoFileSystem::from_file(file)?;
     let root_dir_entries = fs.read_dir("/")?;
     if verbose {
@@ -34,11 +35,10 @@ pub fn decode_iso_from_file(
     let disc = get_if_dts_cd_dir_entry(&mut fs, &root_dir_entries, verbose)?;
     match disc {
         Some(d) => Ok(d),
-        None => {
-            return Err(Box::new(NotDtsDiscIsoError {
-                file: path.to_string_lossy().into_owned(),
-            }));
-        }
+        None => Err(anyhow!(
+            "This is not a DTS CD ISO file ({})",
+            path.display()
+        )),
     }
 }
 

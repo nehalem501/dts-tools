@@ -1,9 +1,10 @@
 use std::{
-    error::Error,
     fs,
     io::{Read, Seek},
     path::{Path, PathBuf},
 };
+
+use anyhow::Result;
 
 use crate::file::{DirEntry, File, FileSystem, FileType};
 
@@ -21,11 +22,11 @@ impl FileSystem for OsFileSystem {
         path.as_ref().is_dir()
     }
 
-    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>> {
+    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File> {
         Ok(OsFile::from(fs::File::open(path)?))
     }
 
-    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>> {
         let read_dir = std::fs::read_dir(path)?.filter_map(Result::ok);
         Ok(read_dir.map(OsDirEntry::from).collect())
     }
@@ -36,7 +37,7 @@ pub struct OsFile {
 }
 
 impl File for OsFile {
-    fn len(&mut self) -> Result<u64, Box<dyn Error>> {
+    fn len(&mut self) -> Result<u64> {
         let position = self.stream_position()?;
         let len = self.seek(std::io::SeekFrom::End(0))?;
         if position != len {
@@ -69,11 +70,11 @@ pub struct OsDirEntry {
 }
 
 impl DirEntry for OsDirEntry {
-    fn path(&self) -> Result<PathBuf, Box<dyn Error>> {
+    fn path(&self) -> Result<PathBuf> {
         Ok(self.dir.path())
     }
 
-    fn file_type(&self) -> Result<FileType, Box<dyn Error>> {
+    fn file_type(&self) -> Result<FileType> {
         let metadata = self.dir.metadata()?;
         if metadata.is_dir() {
             Ok(FileType::Directory)

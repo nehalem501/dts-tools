@@ -1,8 +1,9 @@
-use std::{error::Error, fmt, path::Path};
+use std::{fmt, path::Path};
+
+use anyhow::{Result, anyhow};
 
 use crate::{
     cd::{CdTreeEntries, get_if_dts_cd_dir_entry},
-    error::UnknownFileTypeError,
     ext234::is_ext234_image_file,
     file::{DirEntry, File, FileSystem},
     hdd::is_hdd_img_file,
@@ -72,23 +73,24 @@ pub fn get_file_type<P: AsRef<Path>>(
     file: &mut dyn File,
     path: P,
     verbose: bool,
-) -> Result<FileType, Box<dyn Error>> {
+) -> Result<FileType> {
     get_simple_file_type_from_extension(&path, verbose)
         .and_then(|t| Some(simple_file_type_to_file_type(t)))
         .or(get_remaining_file_type_from_extension(&path, verbose))
         .or(try_get_simple_file_type_from_content(file, verbose)
             .and_then(|t| Some(simple_file_type_to_file_type(t))))
         .or(try_get_remaining_file_type_from_content(file, verbose))
-        .ok_or(Box::new(UnknownFileTypeError {
-            file: path.as_ref().to_string_lossy().into_owned(),
-        }))
+        .ok_or(anyhow!(
+            "Could not recognize file type for {}",
+            path.as_ref().display()
+        ))
 }
 
 pub fn get_dir_type<FS: FileSystem<File = F, DirEntry = D>, D: DirEntry, F: File + 'static>(
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<DirType, Box<dyn Error>> {
+) -> Result<DirType> {
     match get_if_dts_cd_dir_entry(fs, entries, verbose)? {
         Some(cd) => Ok(DirType::DiscTree(cd)),
         None => Ok(DirType::Regular),

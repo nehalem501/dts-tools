@@ -1,20 +1,18 @@
-use std::error::Error;
+use anyhow::{Result, anyhow};
 
-use crate::error::{BcdDecodeError, BcdEncodeError};
-
-pub fn bcd_to_decimal(value: u8) -> Result<u8, Box<dyn Error>> {
+pub fn bcd_to_decimal(value: u8) -> Result<u8> {
     let tens = value >> 4;
     let units = value & 0xF;
     if tens >= 10 || units >= 10 {
-        Err(Box::new(BcdDecodeError { value }))
+        Err(anyhow!("Could not unpack BCD value: {:#02x}", value))
     } else {
         Ok(tens * 10 + units)
     }
 }
 
-pub fn decimal_to_bcd(value: u8) -> Result<u8, Box<dyn Error>> {
+pub fn decimal_to_bcd(value: u8) -> Result<u8> {
     if value > 99 {
-        Err(Box::new(BcdEncodeError { value }))
+        Err(anyhow!("Could not pack value to BCD: {}", value))
     } else {
         let tens = value / 10;
         let units = value % 10;

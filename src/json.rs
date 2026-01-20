@@ -1,5 +1,6 @@
-use std::{error::Error, fs::File, io::Write, path::Path};
+use std::{fs::File, io::Write, path::Path};
 
+use anyhow::Result;
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -31,11 +32,7 @@ pub struct ReelEntryJson {
     pub number: u8,
 }
 
-pub fn save_json<P: AsRef<Path>>(
-    path: P,
-    entries: Vec<EntryJson>,
-    verbose: bool,
-) -> Result<(), Box<dyn Error>> {
+pub fn save_json<P: AsRef<Path>>(path: P, entries: Vec<EntryJson>, verbose: bool) -> Result<()> {
     let data = MetadataJson { data: entries };
     let json_string = serde_json::to_string_pretty(&data)?;
     if verbose {

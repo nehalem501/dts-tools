@@ -1,4 +1,6 @@
-use std::{error::Error, str};
+use std::str;
+
+use anyhow::Result;
 
 use crate::file::File;
 
@@ -16,7 +18,7 @@ pub fn check_ext234_magic(bytes: &[u8]) -> bool {
     bytes[1080] == 0x53 && bytes[1081] == 0xEF
 }
 
-pub fn get_ext234_label(bytes: &[u8]) -> Result<String, Box<dyn Error>> {
+pub fn get_ext234_label(bytes: &[u8]) -> Result<String> {
     let label = str::from_utf8(&bytes[1144..1160])?.trim_matches(char::from(0));
     Ok(label.to_string())
 }

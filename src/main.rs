@@ -7,7 +7,6 @@ use crate::extract::{Feature, FeatureId, FeatureName, TrailerIds, TrailerNames, 
 mod bcd;
 mod cd;
 mod detect;
-mod error;
 mod ext234;
 mod ext234file;
 mod extract;

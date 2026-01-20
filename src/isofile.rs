@@ -1,19 +1,16 @@
 use std::{
     cell::RefCell,
-    error::Error,
     io::{ErrorKind, Read, Seek, SeekFrom},
     path::{Component, Components, Path, PathBuf},
     rc::Rc,
 };
 
+use anyhow::{Result, anyhow};
 use bitflags::bitflags;
 use chrono::{DateTime, FixedOffset, TimeDelta, TimeZone};
 use static_assertions::assert_eq_size;
 
-use crate::{
-    error::PathError,
-    file::{DirEntry, File, FileSystem, FileType},
-};
+use crate::file::{DirEntry, File, FileSystem, FileType};
 
 const ISO_SECTOR_LEN: u64 = 2048;
 const ISO_HEADER_START: u64 = ISO_SECTOR_LEN * 16;
@@ -30,7 +27,7 @@ pub struct IsoFileSystem {
 }
 
 impl IsoFileSystem {
-    pub fn from_file(mut file: Box<dyn File>) -> Result<Self, Box<dyn Error>> {
+    pub fn from_file(mut file: Box<dyn File>) -> Result<Self> {
         let bytes = file.read_exact_bytes_at(2048, ISO_HEADER_START)?;
         let raw_header: IsoHeaderRaw = unsafe { std::ptr::read(bytes.as_ptr() as *const _) };
         if raw_header.volume_descriptor_type != 0x01 {
@@ -53,7 +50,7 @@ impl IsoFileSystem {
         current: &IsoDirectory,
         path: &Path,
         components: &mut Components,
-    ) -> Result<IsoDirectory, Box<dyn Error>> {
+    ) -> Result<IsoDirectory> {
         match components.next() {
             Some(Component::Normal(name)) => {
                 let children = self.get_children(current);
@@ -63,19 +60,21 @@ impl IsoFileSystem {
                             self.get_dir_entry_from_path(d, path, components)
                         } else {
                             match components.next() {
-                                Some(c) => Err(Box::new(PathError {
-                                    path: path.join(c.as_os_str()).to_string_lossy().to_string(),
-                                    file: String::new(), // TODO
-                                })),
+                                Some(c) => Err(anyhow!(
+                                    "Could not find path ({}) in file {}",
+                                    path.join(c.as_os_str()).display(),
+                                    /*TODO*/ String::new()
+                                )),
                                 None => Ok(d.clone()),
                             }
                         }
                     }
                     None => {
-                        Err(Box::new(PathError {
-                            path: path.to_string_lossy().to_string(),
-                            file: String::new(), // TODO
-                        }))
+                        Err(anyhow!(
+                            "Could not find path ({}) in file {}",
+                            path.display(),
+                            /*TODO*/ String::new()
+                        ))
                     }
                 }
             }
@@ -147,7 +146,7 @@ impl FileSystem for IsoFileSystem {
         }
     }
 
-    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File, Box<dyn Error>> {
+    fn open_file<P: AsRef<Path>>(&mut self, path: P) -> Result<Self::File> {
         let record = self.get_dir_entry_from_path(
             &self.root.clone(),
             path.as_ref(),
@@ -165,7 +164,7 @@ impl FileSystem for IsoFileSystem {
         Ok(file)
     }
 
-    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>, Box<dyn Error>> {
+    fn read_dir<P: AsRef<Path>>(&mut self, path: P) -> Result<Vec<Self::DirEntry>> {
         let dir = self.get_dir_entry_from_path(
             &self.root.clone(),
             path.as_ref(),
@@ -190,7 +189,7 @@ pub struct IsoFile {
 impl IsoFile {}
 
 impl File for IsoFile {
-    fn len(&mut self) -> Result<u64, Box<dyn Error>> {
+    fn len(&mut self) -> Result<u64> {
         Ok(self.len)
     }
 }
@@ -264,13 +263,13 @@ pub struct IsoDirEntry {
 }
 
 impl DirEntry for IsoDirEntry {
-    fn path(&self) -> Result<PathBuf, Box<dyn Error>> {
+    fn path(&self) -> Result<PathBuf> {
         /*
         Ok(PathBuf::from(clean_name))*/
         Ok(self.dir.path_to_entry.clone())
     }
 
-    fn file_type(&self) -> Result<FileType, Box<dyn Error>> {
+    fn file_type(&self) -> Result<FileType> {
         if self.dir.is_dir() {
             Ok(FileType::Directory)
         } else {

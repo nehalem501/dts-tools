@@ -1,8 +1,9 @@
-use std::{error::Error, path::Path, str, usize};
+use std::{path::Path, str};
+
+use anyhow::{Result, anyhow};
 
 use crate::{
     bcd::{bcd_to_decimal, decimal_to_bcd},
-    error::{SndUnexpectedSizeError, UnknownOpticalBackupSoundtrackFormatError},
     file::File,
     metadata::{
         BackupSoundtrackFormat, Offset, Revision, SndFileMetadata, SndType, XDAMetadata, XDMetadata,
@@ -12,16 +13,14 @@ use crate::{
 pub const SND_HEADER_LEN: usize = 92;
 pub const SND_HEADER_LEN_WITH_ENCRYPTION: usize = SND_HEADER_LEN + 3;
 
-pub fn decode_snd_header_from_file(
-    file: &mut dyn File,
-    path: &Path,
-) -> Result<SndFileMetadata, Box<dyn Error>> {
+pub fn decode_snd_header_from_file(file: &mut dyn File, path: &Path) -> Result<SndFileMetadata> {
     let size_check = check_snd_size(file);
     if !size_check.0 {
-        return Err(Box::new(SndUnexpectedSizeError {
-            size: size_check.1,
-            file: path.to_string_lossy().into_owned(),
-        }));
+        return Err(anyhow!(
+            "Unexpected file size ({}) for SND/AUD/AUE file {}",
+            size_check.1,
+            path.display()
+        ));
     }
 
     let bytes = file.read_bytes(SND_HEADER_LEN_WITH_ENCRYPTION)?;
@@ -32,7 +31,7 @@ pub fn decode_snd_header_from_file(
 pub fn decode_snd_header(
     _file: &dyn File,
     bytes: &[u8; SND_HEADER_LEN_WITH_ENCRYPTION],
-) -> Result<SndFileMetadata, Box<dyn Error>> {
+) -> Result<SndFileMetadata> {
     let revision = Revision::from_header(bytes);
     let (title, xd) = match revision {
         Revision::H1 => {
@@ -107,7 +106,7 @@ pub fn decode_snd_header(
     })
 }
 
-fn get_language(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
+fn get_language(bytes: &[u8]) -> Result<Option<String>> {
     if bytes[0] == b'*' {
         let language = str::from_utf8(&bytes[1..])?.trim_matches(char::from(0));
         if language.is_empty() {
@@ -120,7 +119,7 @@ fn get_language(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
     }
 }
 
-fn get_studio(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
+fn get_studio(bytes: &[u8]) -> Result<Option<String>> {
     let studio = str::from_utf8(&bytes)?.trim_matches(char::from(0));
     if studio.is_empty() {
         Ok(None)
@@ -129,7 +128,7 @@ fn get_studio(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
     }
 }
 
-fn get_optional(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
+fn get_optional(bytes: &[u8]) -> Result<Option<String>> {
     if bytes[0] == b' ' {
         let value = str::from_utf8(&bytes[1..])?.trim();
         if value.is_empty() {
@@ -142,7 +141,7 @@ fn get_optional(bytes: &[u8]) -> Result<Option<String>, Box<dyn Error>> {
     }
 }
 
-fn get_offset(bytes: &[u8]) -> Result<Option<Offset>, Box<dyn Error>> {
+fn get_offset(bytes: &[u8]) -> Result<Option<Offset>> {
     let frames = bcd_to_decimal(bytes[0])?;
     let raw_seconds = bytes[1];
     let seconds = bcd_to_decimal(if raw_seconds > 0x60 {
@@ -169,7 +168,7 @@ fn get_offset(bytes: &[u8]) -> Result<Option<Offset>, Box<dyn Error>> {
     }
 }
 
-pub fn encode_header(data: &SndFileMetadata) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn encode_header(data: &SndFileMetadata) -> Result<Vec<u8>> {
     let mut buffer = vec![];
     if let Some(xd) = &data.xd {
         if let Some(xda) = &xd.xda {
@@ -290,7 +289,7 @@ pub fn check_snd_size(file: &mut dyn File) -> (bool, u64) {
     }
 }
 
-fn insert_offset(buffer: &mut Vec<u8>, offset: &Option<Offset>) -> Result<(), Box<dyn Error>> {
+fn insert_offset(buffer: &mut Vec<u8>, offset: &Option<Offset>) -> Result<()> {
     if let Some(o) = offset {
         buffer.push(decimal_to_bcd(o.frames)?);
         buffer.push(decimal_to_bcd(o.seconds)?);
@@ -306,15 +305,16 @@ fn insert_offset(buffer: &mut Vec<u8>, offset: &Option<Offset>) -> Result<(), Bo
     Ok(())
 }
 
-fn get_optical_backup_format(value: u8) -> Result<BackupSoundtrackFormat, Box<dyn Error>> {
+fn get_optical_backup_format(value: u8) -> Result<BackupSoundtrackFormat> {
     match value {
         0x00 => Ok(BackupSoundtrackFormat::DolbyA),
         0x01 => Ok(BackupSoundtrackFormat::DolbySR),
         0x02 => Ok(BackupSoundtrackFormat::Academy),
         0x80 => Ok(BackupSoundtrackFormat::NonSync),
         0x81 => Ok(BackupSoundtrackFormat::LastReelDolbySR),
-        _ => Err(Box::new(UnknownOpticalBackupSoundtrackFormatError {
-            value,
-        })),
+        _ => Err(anyhow!(
+            "Unknown optical backup sountrack format: {:#04x}",
+            value
+        )),
     }
 }

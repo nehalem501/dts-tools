@@ -1,5 +1,6 @@
-use std::{error::Error, path::PathBuf};
+use std::path::PathBuf;
 
+use anyhow::Result;
 use regex::Regex;
 
 use crate::file::{DirEntry, File, FileSystem, FileType};
@@ -22,7 +23,7 @@ pub fn get_if_dts_cd_dir_entry<
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<Option<CdTreeEntries>, Box<dyn Error>> {
+) -> Result<Option<CdTreeEntries>> {
     match get_if_dts_cd(fs, entries, verbose)? {
         Some(entries) => get_dts_files(fs, &entries, verbose),
         None => Ok(None),
@@ -33,7 +34,7 @@ fn get_if_dts_cd<FS: FileSystem<DirEntry = D>, D: DirEntry>(
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<Option<Vec<D>>, Box<dyn Error>> {
+) -> Result<Option<Vec<D>>> {
     let mut dts_exe_found = false;
     let mut dts_dir: Option<Vec<D>> = None;
 
@@ -74,7 +75,7 @@ fn get_dts_files<FS: FileSystem<File = F>, D: DirEntry, F: File + 'static>(
     fs: &mut FS,
     entries: &Vec<D>,
     verbose: bool,
-) -> Result<Option<CdTreeEntries>, Box<dyn Error>> {
+) -> Result<Option<CdTreeEntries>> {
     let re = Regex::new(r"r[1-9][0-3]?t5\.(aud|aue)").unwrap();
 
     let mut trailers_metadata: Option<&D> = None;

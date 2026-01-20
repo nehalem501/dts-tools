@@ -1,8 +1,8 @@
-use std::error::Error;
 use std::path::Path;
 use std::str;
 
-use crate::error::{HdrUnexpectedHeaderError, HdrUnexpectedSizeError};
+use anyhow::{Result, anyhow};
+
 use crate::file::File;
 use crate::metadata::HdrFileMetadata;
 
@@ -22,27 +22,26 @@ pub fn is_hdr_file(file: &mut dyn File) -> bool {
     return false;
 }
 
-pub fn decode_hdr_from_file(
-    file: &mut dyn File,
-    path: &Path,
-) -> Result<HdrFileMetadata, Box<dyn Error>> {
+pub fn decode_hdr_from_file(file: &mut dyn File, path: &Path) -> Result<HdrFileMetadata> {
     let size_check = check_hdr_size(file);
     if !size_check.0 {
-        return Err(Box::new(HdrUnexpectedSizeError {
-            size: size_check.1,
-            file: path.to_string_lossy().into_owned(),
-        }));
+        return Err(anyhow!(
+            "Unexpected file size ({}) for HDR file {}",
+            size_check.1,
+            path.display()
+        ));
     }
     let bytes = file.read_bytes(HDR_LEN as usize)?;
     decode_hdr(&bytes, path)
 }
 
-pub fn decode_hdr(bytes: &[u8], path: &Path) -> Result<HdrFileMetadata, Box<dyn Error>> {
+pub fn decode_hdr(bytes: &[u8], path: &Path) -> Result<HdrFileMetadata> {
     if !check_hdr_magic(bytes) {
-        return Err(Box::new(HdrUnexpectedHeaderError {
-            data: bytes[..10].to_vec(),
-            file: path.to_string_lossy().into_owned(),
-        }));
+        return Err(anyhow!(
+            "Unexpected header ({:?}) for HDR file {}",
+            bytes[..10].to_vec(),
+            path.display()
+        ));
     }
     let title = str::from_utf8(&bytes[9..27 /*18*/])?.trim_matches(char::from(0));
     let studio = str::from_utf8(&bytes[69..79])?.trim_matches(char::from(0));
