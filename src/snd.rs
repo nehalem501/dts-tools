@@ -81,11 +81,17 @@ pub fn decode_snd_header(
     let reel = bytes[78];
     let start_offset = get_offset(&bytes[84..88])?;
     let end_offset = get_offset(&bytes[88..92])?;
-    let encryption_key = if bytes[92] == 1 {
-        Some(u16::from_le_bytes([bytes[93], bytes[94]]))
-    } else {
-        None
+    let encryption_key = match revision {
+        Revision::XD | Revision::XDA => {
+            if bytes[92] == 1 {
+                Some(u16::from_le_bytes([bytes[93], bytes[94]]))
+            } else {
+                None
+            }
+        }
+        _ => None,
     };
+
     Ok(SndFileMetadata {
         revision,
         snd_type: if reel == 14 {
