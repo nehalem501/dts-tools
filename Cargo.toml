@@ -9,6 +9,7 @@ backhand = "0.24.1"
 bitflags = { version = "2.9", features = ["std"] }
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
+encoding_rs = "0.8"
 ext4-view = { version = "0.9.3" , features = ["std"] }
 itertools = "0.14.0"
 mbrman = "0.6.1"

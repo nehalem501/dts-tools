@@ -24,6 +24,7 @@ mod snd;
 mod squash;
 mod squashfsfile;
 mod trailers;
+mod utils;
 
 #[derive(Parser)]
 #[command(version)]

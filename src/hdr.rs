@@ -5,6 +5,7 @@ use anyhow::{Result, anyhow};
 
 use crate::file::File;
 use crate::metadata::HdrFileMetadata;
+use crate::utils::get_title;
 
 const HDR_LEN: u8 = 0xCA;
 const HDR_HEADER: [u8; 8] = [0x00, 0x01, 0x00, 0x04, 0x00, 0x44, 0x54, 0x53];
@@ -43,7 +44,8 @@ pub fn decode_hdr(bytes: &[u8], path: &Path) -> Result<HdrFileMetadata> {
             path.display()
         ));
     }
-    let title = str::from_utf8(&bytes[9..27 /*18*/])?.trim_matches(char::from(0));
+    let title = get_title(&bytes[9..27 /*18*/])?;
+    let title = title.trim_matches(char::from(0));
     let studio = str::from_utf8(&bytes[69..79])?.trim_matches(char::from(0));
     let id = u16::from_le_bytes([bytes[79], bytes[80]]);
     let reel = bytes[91];

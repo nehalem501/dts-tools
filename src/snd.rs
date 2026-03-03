@@ -1,13 +1,14 @@
 use std::{path::Path, str};
 
 use anyhow::{Result, anyhow};
+use encoding_rs::WINDOWS_1252;
 
 use crate::{
     bcd::{bcd_to_decimal, decimal_to_bcd},
     file::File,
     metadata::{
         BackupSoundtrackFormat, Offset, Revision, SndFileMetadata, SndType, XDAMetadata, XDMetadata,
-    },
+    }, utils::get_title,
 };
 
 pub const SND_HEADER_LEN: usize = 92;
@@ -35,20 +36,20 @@ pub fn decode_snd_header(
     let revision = Revision::from_header(bytes);
     let (title, xd) = match revision {
         Revision::H1 => {
-            let title = str::from_utf8(&bytes[0..67])?;
+            let title = get_title(&bytes[0..67])?;
             (title, None)
         }
         Revision::XD => {
-            let title = str::from_utf8(&bytes[0..60])?;
+            let title = get_title(&bytes[0..60])?;
             let language = get_language(&bytes[60..65])?;
             let xd = XDMetadata {
                 language,
                 xda: None,
             };
-            (title, Some(xd))
+            (title.to_string(), Some(xd))
         }
         Revision::XDA => {
-            let title = str::from_utf8(&bytes[0..18])?;
+            let title = get_title(&bytes[0..18])?;
             let language = get_language(&bytes[60..65])?;
             let source = get_optional(&bytes[18..31])?;
             let mix = get_optional(&bytes[31..47])?;
@@ -70,7 +71,7 @@ pub fn decode_snd_header(
                 language,
                 xda: Some(xda),
             };
-            (title, Some(xd))
+            (title.to_string(), Some(xd))
         }
     };
     let title = title.trim_matches(char::from(0)).trim().to_string();
